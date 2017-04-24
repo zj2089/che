@@ -32,6 +32,7 @@ import (
 	"github.com/eclipse/che/agents/go-agents/core/auth"
 	"github.com/eclipse/che/agents/go-agents/core/rest"
 	"github.com/eclipse/che/agents/go-agents/terminal-agent/term"
+	"github.com/rs/cors"
 )
 
 var (
@@ -124,7 +125,7 @@ func main() {
 	r := rest.NewDefaultRouter(basePath, appHTTPRoutes)
 	rest.PrintRoutes(appHTTPRoutes)
 
-	var handler = getHandler(r)
+	var handler = cors.Default().Handler(r)//todo remove corse
 	http.Handle("/", handler)
 
 	server := &http.Server{

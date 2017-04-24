@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
+	//"io/ioutil"
 	"log"
 	"net/http"
 	"time"
@@ -14,12 +14,34 @@ import (
 	"github.com/eclipse/che-lib/websocket"
 	"github.com/eclipse/che/agents/go-agents/core/common"
 	"github.com/eclipse/che/agents/go-agents/core/rest"
+	"fmt"
+	"sync"
+	"github.com/eclipse/che/agents/go-agents/core/rest/restutil"
+	"path"
+	//"errors"
+	"io/ioutil"
+	"strconv"
+	"net/url"
+	"errors"
 )
 
 // WebSocketMessage represents message sent over websocket connection
 type WebSocketMessage struct {
 	Type string          `json:"type"`
 	Data json.RawMessage `json:"data"`
+}
+
+type TerminalCash struct {
+	sync.RWMutex
+	terminals map[int]*wsPty
+}
+
+type TermInfo struct {
+	Id int `json:"id"`
+}
+
+type TermContent struct {
+	Content string `json:"content"`
 }
 
 var (
@@ -40,30 +62,70 @@ var (
 		Name: "Terminal routes",
 		Items: []rest.Route{
 			{
+				Method:     "POST",
+				Name:       "Create new pty Terminal",
+				Path:       "/pty",//todo maybe it would be better /terminal
+				HandleFunc: createNewTerminal,
+			},
+			{
 				Method:     "GET",
-				Name:       "Connect to pty(webscoket)",
-				Path:       "/pty",
+				Name:       "Connect to pty terminal(webscoket)",
+				Path:       "/pty/:id",
 				HandleFunc: ConnectToPtyHF,
+			},
+			{
+				Method:     "GET",
+				Name:       "Get terminal pty content file by id",
+				Path:       "/ptycontent/:id",
+				HandleFunc: getTerminalContent,
 			},
 		},
 	}
+
+	termCash = TerminalCash{terminals: make(map[int]*wsPty)}
 )
+
+func createNewTerminal(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+	fmt.Println("create new terminal")
+
+	wsPty, err := startPty(Cmd)
+	if err != nil {
+		return err;
+	}
+
+	termCash.RWMutex.Lock()
+	defer termCash.RWMutex.Unlock()
+	pid := wsPty.cmd.Process.Pid
+	termCash.terminals[pid] = wsPty
+
+	return restutil.WriteJSON(w, TermInfo{Id:pid})
+}
+
+func getTerminalContent(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+	wsPty, err := getWP(r.URL)
+	if err != nil {
+		return err
+	}
+	(*wsPty.Rdr).Close();
+	bts, err :=  ioutil.ReadAll(ioutil.NopCloser(wsPty.ptyFile))
+	return restutil.WriteJSON(w, TermContent{Content:string(bts)})
+}
 
 // ConnectToPtyHF provides communication with TTY over websocket
 func ConnectToPtyHF(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+	wp, err := getWP(r.URL)
+	if err != nil {
+		return err
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		// upgrader writes http error into response, so no need to process error
-		return nil
-	}
-
-	wp, err := startPty(Cmd)
-	if err != nil {
-		sendInternalError(conn, "Failed to start command: "+err.Error())
-		return nil
+		return err
 	}
 
 	reader := ioutil.NopCloser(wp.ptyFile)
+	wp.Rdr = &reader
 	finalizer := newFinalizer(reader, conn, wp.ptyFile)
 
 	log.Println("Start new terminal.")
@@ -80,6 +142,20 @@ func ConnectToPtyHF(w http.ResponseWriter, r *http.Request, _ rest.Params) error
 	waitPTY(wp)
 
 	return nil
+}
+
+func getWP(url *url.URL) (*wsPty, error) {
+	tId, err := strconv.Atoi(path.Base(url.Path))
+	if err != nil {
+		return nil, err
+	}
+
+	wp := termCash.terminals[tId]
+	if wp == nil {
+		return nil, rest.NotFound(errors.New(fmt.Sprintf("Terminal with id: %d was not found.", tId)))
+	}
+
+	return wp, nil
 }
 
 // read from the web socket, copying to the pty master
@@ -158,7 +234,7 @@ func setupWSPinging(conn *websocket.Conn, finalizer *readWriteRoutingFinalizer) 
 	defer ticker.Stop()
 	// send ping messages by sheduler
 	for range ticker.C {
-		if err := writeWSMessageToSocket(conn, websocket.PingMessage, []byte{}, finalizer); err != nil {
+		if err := writeWSMessageToSocket(conn, websocket.PingMessage, []byte{}, finalizer); err != nil {//todo check error on normal 1005
 			log.Printf("Error occurs on sending ping message to websocket. %v", err)
 			return
 		}
