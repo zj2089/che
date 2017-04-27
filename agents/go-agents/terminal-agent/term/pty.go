@@ -31,7 +31,7 @@ type wsPty struct {
 	id      int
 	cmd     *exec.Cmd // pty builds on os.exec
 	ptyFile *os.File  // a pty is simply an os.File
-	Rdr     *io.ReadCloser
+	finalizerObj *readWriteRoutingFinalizer
 }
 
 // startPty starts shell interpreter and returns wsPty that represents this terminal

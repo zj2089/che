@@ -125,7 +125,7 @@ func main() {
 	r := rest.NewDefaultRouter(basePath, appHTTPRoutes)
 	rest.PrintRoutes(appHTTPRoutes)
 
-	var handler = cors.Default().Handler(r)//todo remove corse
+	var handler = cors.Default().Handler(r) //todo remove corse
 	http.Handle("/", handler)
 
 	server := &http.Server{

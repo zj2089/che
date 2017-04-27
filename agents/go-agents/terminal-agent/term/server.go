@@ -6,11 +6,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	//"io/ioutil"
 	"log"
 	"net/http"
 	"time"
-
 	"github.com/eclipse/che-lib/websocket"
 	"github.com/eclipse/che/agents/go-agents/core/common"
 	"github.com/eclipse/che/agents/go-agents/core/rest"
@@ -18,7 +16,6 @@ import (
 	"sync"
 	"github.com/eclipse/che/agents/go-agents/core/rest/restutil"
 	"path"
-	//"errors"
 	"io/ioutil"
 	"strconv"
 	"net/url"
@@ -65,19 +62,19 @@ var (
 				Method:     "POST",
 				Name:       "Create new pty Terminal",
 				Path:       "/pty",//todo maybe it would be better /terminal
-				HandleFunc: createNewTerminal,
+				HandleFunc: CreateNewTerminal,
 			},
 			{
 				Method:     "GET",
 				Name:       "Connect to pty terminal(webscoket)",
-				Path:       "/pty/:id",
+				Path:       "/pty/:id",//todo set up terminal size with json or query
 				HandleFunc: ConnectToPtyHF,
 			},
 			{
 				Method:     "GET",
 				Name:       "Get terminal pty content file by id",
 				Path:       "/ptycontent/:id",
-				HandleFunc: getTerminalContent,
+				HandleFunc: GetTerminalContent,
 			},
 		},
 	}
@@ -85,7 +82,7 @@ var (
 	termCash = TerminalCash{terminals: make(map[int]*wsPty)}
 )
 
-func createNewTerminal(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+func CreateNewTerminal(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
 	fmt.Println("create new terminal")
 
 	wsPty, err := startPty(Cmd)
@@ -101,13 +98,16 @@ func createNewTerminal(w http.ResponseWriter, r *http.Request, _ rest.Params) er
 	return restutil.WriteJSON(w, TermInfo{Id:pid})
 }
 
-func getTerminalContent(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
+func GetTerminalContent(w http.ResponseWriter, r *http.Request, _ rest.Params) error {
 	wsPty, err := getWP(r.URL)
 	if err != nil {
 		return err
 	}
-	(*wsPty.Rdr).Close();
-	bts, err :=  ioutil.ReadAll(ioutil.NopCloser(wsPty.ptyFile))
+
+	wsPty.finalizerObj.conn.Close()
+	wsPty.finalizerObj.reader.Close()
+
+	bts, err := ioutil.ReadAll(ioutil.NopCloser(wsPty.ptyFile))
 	return restutil.WriteJSON(w, TermContent{Content:string(bts)})
 }
 
@@ -125,8 +125,8 @@ func ConnectToPtyHF(w http.ResponseWriter, r *http.Request, _ rest.Params) error
 	}
 
 	reader := ioutil.NopCloser(wp.ptyFile)
-	wp.Rdr = &reader
 	finalizer := newFinalizer(reader, conn, wp.ptyFile)
+	wp.finalizerObj = finalizer
 
 	log.Println("Start new terminal.")
 	defer log.Println("Terminal process stopped.")
