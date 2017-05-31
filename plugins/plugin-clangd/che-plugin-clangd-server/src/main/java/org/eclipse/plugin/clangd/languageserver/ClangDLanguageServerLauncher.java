@@ -21,6 +21,9 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 
 import static java.util.Arrays.asList;
@@ -29,18 +32,18 @@ import static java.util.Arrays.asList;
  * @author Alexander Andrienko
  */
 @Singleton
-public class ClangdLaunguageServerLauncher extends LanguageServerLauncherTemplate {
+public class ClangDLanguageServerLauncher extends LanguageServerLauncherTemplate {
 
     private static final String LANGUAGE_ID = "clangd";
     private static final LanguageDescription description;
     private static final String[] EXTENSIONS = new String[]{"c", "cpp", "h", "cc"};//todo
-    private static final String[] MIME_TYPES = new String[]{"text/x-c", "text/x-c", "text/x-h", "text/x-c"};
+    private static final String[] MIME_TYPES = new String[]{"text/x-c", "text/x-c", "text/x-h", "text/x-c"};//todo check it
 
-    private static String laungDBinary;
+    private final Path launchScript;
 
     @Inject
-    public ClangdLaunguageServerLauncher() {
-        laungDBinary = "clangd";//todo
+    public ClangDLanguageServerLauncher() {
+        launchScript = Paths.get(System.getenv("HOME"), "che/ls-clangd/launch.sh");
     }
 
     @Override
@@ -50,7 +53,7 @@ public class ClangdLaunguageServerLauncher extends LanguageServerLauncherTemplat
 
     @Override
     protected Process startLanguageServerProcess(String projectPath) throws LanguageServerException {
-        ProcessBuilder processBuilder = new ProcessBuilder(laungDBinary);
+        ProcessBuilder processBuilder = new ProcessBuilder(launchScript.toString());
         processBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
         processBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
         try {
@@ -70,9 +73,8 @@ public class ClangdLaunguageServerLauncher extends LanguageServerLauncherTemplat
 
     @Override
     public boolean isAbleToLaunch() {
-        return true;//todo
+        return Files.exists(launchScript);
     }
-
 
     static {
         description = new LanguageDescription();

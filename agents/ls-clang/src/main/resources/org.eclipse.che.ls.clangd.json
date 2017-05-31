@@ -1,0 +1,7 @@
+{
+  "id": "org.eclipse.che.ls.clangd",
+  "name": "Clangd language server",
+  "description": "Clangd intellisense for C/C++ projects.",
+  "dependencies": [],
+  "properties": {}
+}

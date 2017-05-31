@@ -15,7 +15,7 @@ import com.google.inject.multibindings.Multibinder;
 
 import org.eclipse.che.api.languageserver.launcher.LanguageServerLauncher;
 import org.eclipse.che.inject.DynaModule;
-import org.eclipse.plugin.clangd.languageserver.ClangdLaunguageServerLauncher;
+import org.eclipse.plugin.clangd.languageserver.ClangDLanguageServerLauncher;
 
 /**
  * @author Alexander Andrienko
@@ -24,6 +24,6 @@ import org.eclipse.plugin.clangd.languageserver.ClangdLaunguageServerLauncher;
 public class ClangModule extends AbstractModule {
     @Override
     protected void configure() {
-        Multibinder.newSetBinder(binder(), LanguageServerLauncher.class).addBinding().to(ClangdLaunguageServerLauncher.class);
+        Multibinder.newSetBinder(binder(), LanguageServerLauncher.class).addBinding().to(ClangDLanguageServerLauncher.class);
     }
 }

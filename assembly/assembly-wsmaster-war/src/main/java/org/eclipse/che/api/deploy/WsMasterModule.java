@@ -19,6 +19,7 @@ import org.eclipse.che.api.agent.LSJsonAgent;
 import org.eclipse.che.api.agent.LSPhpAgent;
 import org.eclipse.che.api.agent.LSPythonAgent;
 import org.eclipse.che.api.agent.LSTypeScriptAgent;
+import org.eclipse.che.api.agent.LsClangAgent;
 import org.eclipse.che.api.agent.SshAgent;
 import org.eclipse.che.api.agent.SshAgentLauncher;
 import org.eclipse.che.api.agent.UnisonAgent;
@@ -149,6 +150,7 @@ public class WsMasterModule extends AbstractModule {
         agents.addBinding().to(LSPythonAgent.class);
         agents.addBinding().to(LSJsonAgent.class);
         agents.addBinding().to(LSCSharpAgent.class);
+        agents.addBinding().to(LsClangAgent.class);
         agents.addBinding().to(LSTypeScriptAgent.class);
 
         Multibinder<AgentLauncher> launchers = Multibinder.newSetBinder(binder(), AgentLauncher.class);
