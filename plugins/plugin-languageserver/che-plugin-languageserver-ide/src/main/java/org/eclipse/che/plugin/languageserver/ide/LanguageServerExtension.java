@@ -149,7 +149,7 @@ public class LanguageServerExtension {
                 DidOpenTextDocumentParams openEvent = dtoFactory.createDto(DidOpenTextDocumentParams.class);
                 openEvent.setTextDocument(documentItem);
                 openEvent.getTextDocument().setUri(event.getFile().getLocation().toString());
-                openEvent.setText(text);
+                //openEvent.setText(text);
 
                 serviceClient.didOpen(openEvent);
             }
