@@ -144,6 +144,7 @@ public class LanguageServerCodeAssistProcessor implements CodeAssistProcessor {
             List<Match> highlights = filter(currentWord, item);
             if (highlights != null) {
                 proposals.add(new CompletionItemBasedCompletionProposal(item,
+                                                                        currentWord,
                                                                         documentServiceClient,
                                                                         latestCompletionResult.getDocumentId(),
                                                                         resources,
