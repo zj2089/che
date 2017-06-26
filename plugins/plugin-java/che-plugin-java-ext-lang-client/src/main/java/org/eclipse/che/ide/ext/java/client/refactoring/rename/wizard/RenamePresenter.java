@@ -43,12 +43,14 @@ import org.eclipse.che.ide.ext.java.client.util.JavaUtil;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangeCreationResult;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangeInfo;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.CreateRenameRefactoring;
+import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringResult;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringSession;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatusEntry;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RenameRefactoringSession;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RenameSettings;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ValidateNewName;
+import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.List;
 
@@ -293,7 +295,7 @@ public class RenamePresenter implements ActionDelegate {
         final RefactoringSession session = dtoFactory.createDto(RefactoringSession.class);
         session.setSessionId(renameRefactoringSession.getSessionId());
 
-        prepareRenameChanges(session).then(new Operation<ChangeCreationResult>() {
+        prepareRenameChanges(session).then(new Operation<ChangeCreationResult>() {//todo thenPromise
             @Override
             public void apply(ChangeCreationResult arg) throws OperationException {
                 int severityCode = arg.getStatus().getSeverity();
@@ -309,26 +311,26 @@ public class RenamePresenter implements ActionDelegate {
                         }
                         break;
                     default:
-                        clientServerEventService.sendFileTrackingSuspendEvent().then(success -> {
-                            applyRefactoring(session);
-                        });
+                        applyRefactoring(session).catchError(error -> {Log.error(getClass(), error.getMessage());});
+//                        clientServerEventService.sendFileTrackingSuspendEvent()
+//                                                .thenPromise(success -> applyRefactoring(session))
+//                                                .catchError(error -> {Log.error(getClass(), error.getMessage());});
 
                 }
             }
-        }).catchError(new Operation<PromiseError>() {
-            @Override
-            public void apply(PromiseError arg) throws OperationException {
-                notificationManager.notify(locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
-            }
+        }).catchError(arg -> {
+            notificationManager.notify(locale.failedToRename(), arg.getMessage(), FAIL, FLOAT_MODE);
         });
     }
 
     private void showWarningDialog(final RefactoringSession session, ChangeCreationResult changeCreationResult) {
         List<RefactoringStatusEntry> entries = changeCreationResult.getStatus().getEntries();
 
-        ConfirmCallback confirmCallback = () -> clientServerEventService.sendFileTrackingSuspendEvent().then(success -> {
-            applyRefactoring(session);
-        });
+        ConfirmCallback confirmCallback = () -> clientServerEventService.sendFileTrackingSuspendEvent()
+                                                                        .thenPromise(success -> applyRefactoring(session))
+                                                                        .catchError(err -> {
+                                                                            Log.error(getClass(), err.getMessage());
+                                                                        });
 
         dialogFactory.createConfirmDialog(locale.warningOperationTitle(),
                                           entries.isEmpty() ? locale.warningOperationContent() : entries.get(0).getMessage(),
@@ -339,19 +341,27 @@ public class RenamePresenter implements ActionDelegate {
                                           }).show();
     }
 
-    private void applyRefactoring(RefactoringSession session) {
-        refactorService.applyRefactoring(session).then(refactoringResult -> {
+    private Promise<RefactoringResult> applyRefactoring(RefactoringSession session) {
+        return refactorService.applyRefactoring(session).then(refactoringResult -> {
             List<ChangeInfo> changes = refactoringResult.getChanges();
             if (refactoringResult.getSeverity() == OK) {
                 view.hide();
-                updateAfterRefactoring(changes)
-                        .then(refactoringUpdater.handleMovingFiles(changes)
-                                                .then(clientServerEventService.sendFileTrackingResumeEvent()));
+                updateAfterRefactoring(changes).thenPromise(result -> refactoringUpdater.handleMovingFiles(changes)
+//                                                                                        .then(
+//                                                                                                clientServerEventService.sendFileTrackingResumeEvent()
+//                                                                                             )
+                                                           )
+                                               .catchError(err -> {Log.error(getClass(), err.getMessage());});
             } else {
                 view.showErrorMessage(refactoringResult);
                 refactoringUpdater.handleMovingFiles(changes)
-                                  .then(clientServerEventService.sendFileTrackingResumeEvent());
+//                                  .then(clientServerEventService.sendFileTrackingResumeEvent())
+                                  .catchError(err -> {
+                                      Log.error(getClass(),err.getMessage());
+                                  });
             }
+        }).catchError(err -> {
+            Log.error(getClass(), err.getMessage());
         });
     }
 
@@ -366,11 +376,11 @@ public class RenamePresenter implements ActionDelegate {
             }
 
             if (project != null) {
-                refactorService.reindexProject(project.getLocation().toString());
+                refactorService.reindexProject(project.getLocation().toString()).catchError(err -> {Log.error(getClass(), err.getMessage());});
             }
 
             setEditorFocus();
-        });
+        }).catchError(err -> {Log.error(getClass(), err.getMessage());});
     }
 
     private Promise<ChangeCreationResult> prepareRenameChanges(final RefactoringSession session) {
@@ -379,8 +389,13 @@ public class RenamePresenter implements ActionDelegate {
         return refactorService.setRenameSettings(renameSettings).thenPromise(new Function<Void, Promise<ChangeCreationResult>>() {
             @Override
             public Promise<ChangeCreationResult> apply(Void arg) throws FunctionException {
-                return refactorService.createChange(session);
+                return refactorService.createChange(session)
+                                      .catchError(err -> {
+                                          Log.error(getClass(), err.getMessage());
+                                      });
             }
+        }).catchError(err -> {
+            Log.error(getClass(),  err.getMessage());
         });
     }
 
