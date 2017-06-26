@@ -85,6 +85,7 @@ public class EditorFileStatusNotificationOperation implements BiConsumer<String,
 
         switch (status) {
             case MODIFIED: {
+                Log.info(getClass(), "external changes for file " + name);
                 Log.debug(getClass(), "Received updated file event status: " + stringPath);
 
                 eventBus.fireEvent(new FileContentUpdateEvent(stringPath, params.getHashCode()));

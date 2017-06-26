@@ -33,6 +33,7 @@ import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangeInfo;
 import org.eclipse.che.ide.part.editor.multipart.EditorMultiPartStackPresenter;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.resources.reveal.RevealResourceEvent;
+import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -156,8 +157,11 @@ public class RefactoringUpdater {
     }
 
     private Promise<Void> updateEditors(List<EditorPartPresenter> editorsToUpdate) {
+        Log.info(getClass(), "Update editors");
         return promises.create(callback -> Scheduler.get().scheduleDeferred(() -> {
-            editorsToUpdate.forEach(editor -> updateFileContent(editor.getEditorInput().getFile()));
+            editorsToUpdate.forEach(editor -> {
+                updateFileContent(editor.getEditorInput().getFile());
+            });
 
             setActiveEditor();
             callback.onSuccess(null);
@@ -168,6 +172,7 @@ public class RefactoringUpdater {
         String path = virtualFile.getLocation().toString();
 
         if (virtualFile instanceof ModificationTracker) {
+            //todo look here
             String modificationStamp = ((ModificationTracker)virtualFile).getModificationStamp();
             eventBus.fireEvent(new FileContentUpdateEvent(path, modificationStamp));
             return;

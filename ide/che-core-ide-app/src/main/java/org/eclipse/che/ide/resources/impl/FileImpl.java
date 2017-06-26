@@ -22,6 +22,7 @@ import org.eclipse.che.ide.api.resources.marker.Marker;
 import org.eclipse.che.ide.api.resources.marker.PresentableTextMarker;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.util.TextUtils;
+import org.eclipse.che.ide.util.loging.Log;
 
 /**
  * Default implementation of the {@code File}.
@@ -110,7 +111,7 @@ class FileImpl extends ResourceImpl implements File {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> updateContent(String content) {
-        setModificationStamp(TextUtils.md5(content));
+        updateModificationStamp(content);
 
         return resourceManager.write(this, content);
     }
@@ -139,5 +140,11 @@ class FileImpl extends ResourceImpl implements File {
     @Override
     public String getModificationStamp() {
         return modificationStamp;
+    }
+
+    @Override
+    public void updateModificationStamp(String content) {
+        this.modificationStamp = TextUtils.md5(content);
+        Log.info(getClass(), "update modification stamp " + modificationStamp);
     }
 }

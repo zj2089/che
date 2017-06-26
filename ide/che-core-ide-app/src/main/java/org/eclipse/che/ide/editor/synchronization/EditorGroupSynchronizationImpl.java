@@ -29,6 +29,8 @@ import org.eclipse.che.ide.api.event.FileContentUpdateHandler;
 import org.eclipse.che.ide.api.notification.NotificationManager;
 import org.eclipse.che.ide.api.resources.File;
 import org.eclipse.che.ide.api.resources.VirtualFile;
+import org.eclipse.che.ide.util.TextUtils;
+import org.eclipse.che.ide.util.loging.Log;
 
 import javax.validation.constraints.NotNull;
 import java.util.HashMap;
@@ -185,6 +187,10 @@ public class EditorGroupSynchronizationImpl implements EditorGroupSynchronizatio
 
         final File file = (File)virtualFile;
         final String newStamp = file.getModificationStamp();
+        Log.info(getClass(), "md5 for old content: " + TextUtils.md5(oldContent));
+        Log.info(getClass(), "md5 for new content: " + TextUtils.md5(newContent));
+        Log.info(getClass(), "lie for old content ? " + oldStamp);
+        Log.info(getClass(), "lie for new content ? " + newStamp);
 
         if (oldStamp == null && !Objects.equals(newContent, oldContent)) {
             replaceContent(document, newContent, oldContent, cursorPosition);
