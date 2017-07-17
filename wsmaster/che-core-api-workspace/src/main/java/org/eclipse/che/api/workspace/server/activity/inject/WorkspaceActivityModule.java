@@ -8,14 +8,18 @@
  * Contributors:
  *   Codenvy, S.A. - initial API and implementation
  *******************************************************************************/
-package org.eclipse.che.plugin.maven.client.editor;
+package org.eclipse.che.api.workspace.server.activity.inject;
 
-import org.eclipse.che.ide.editor.orion.client.OrionEditorPresenter;
+import org.eclipse.che.api.workspace.server.activity.WorkspaceActivityManager;
+import org.eclipse.che.api.workspace.server.activity.WorkspaceActivityService;
 
-/**
- * @author Evgen Vidolob
- */
-public interface PomEditorConfigurationFactory {
+import com.google.inject.AbstractModule;
 
-    PomEditorConfiguration create(OrionEditorPresenter editor);
+public class WorkspaceActivityModule extends AbstractModule {
+
+    @Override
+    protected void configure() {
+        bind(WorkspaceActivityService.class);
+        bind(WorkspaceActivityManager.class);
+    }
 }
