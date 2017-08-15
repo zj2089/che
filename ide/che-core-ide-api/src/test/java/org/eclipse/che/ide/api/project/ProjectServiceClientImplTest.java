@@ -12,7 +12,6 @@ package org.eclipse.che.ide.api.project;
 
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.machine.DevMachine;
-import org.eclipse.che.ide.api.machine.WsAgentStateController;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.resource.Path;
 import org.eclipse.che.ide.rest.AsyncRequest;
@@ -26,6 +25,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
+import static com.google.gwt.safehtml.shared.UriUtils.encode;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -42,8 +42,6 @@ import static org.mockito.Mockito.when;
 public class ProjectServiceClientImplTest {
 
     @Mock
-    private WsAgentStateController wsAgentStateController;
-    @Mock
     private LoaderFactory          loaderFactory;
     @Mock
     private AsyncRequestFactory    asyncRequestFactory;
@@ -58,8 +56,7 @@ public class ProjectServiceClientImplTest {
 
     @Before
     public void setUp() throws Exception {
-        projectServiceClient = new ProjectServiceClientImpl(wsAgentStateController,
-                                                            loaderFactory,
+        projectServiceClient = new ProjectServiceClientImpl(loaderFactory,
                                                             asyncRequestFactory,
                                                             dtoFactory,
                                                             dtoUnmarshallerFactory,
@@ -80,5 +77,18 @@ public class ProjectServiceClientImplTest {
         projectServiceClient.getTree(Path.EMPTY, 1, true);
 
         verify(asyncRequest, never()).loader(any(AsyncRequestLoader.class)); //see CHE-3467
+    }
+
+    //todo
+    public static void main(String[] args) {
+//        System.out.println(encodeAllowEscapes("u u"));
+//        System.out.println(encodeAllowEscapes("u%20u"));
+//        System.out.println(encodeAllowEscapes("http%253A%252F%252Fwinery.opentosca.org%252Ftest%252Fpolicytemplates%252Ffruits"));
+
+
+        System.out.println(encode("u u"));
+        System.out.println(encode("u%20u"));
+        System.out.println(encode("http%253A%252F%252Fwinery.opentosca.org%252Ftest%252Fpolicytemplates%252Ffruits"));
+        String urlToDecode = encode("http%253A%252F%252Fwinery.opentosca.org%252Ftest%252Fpolicytemplates%252Ffruits");
     }
 }
