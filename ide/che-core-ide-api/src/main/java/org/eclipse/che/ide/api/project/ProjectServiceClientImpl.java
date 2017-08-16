@@ -25,7 +25,6 @@ import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
 import org.eclipse.che.ide.MimeType;
 import org.eclipse.che.ide.api.app.AppContext;
-import org.eclipse.che.ide.api.machine.WsAgentStateController;
 import org.eclipse.che.ide.api.resources.SearchResult;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.resource.Path;
@@ -34,7 +33,6 @@ import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
 import org.eclipse.che.ide.rest.UrlBuilder;
 import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
-import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +42,6 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gwt.http.client.RequestBuilder.DELETE;
 import static com.google.gwt.http.client.RequestBuilder.PUT;
-import static com.google.gwt.safehtml.shared.UriUtils.encodeAllowEscapes;
 import static com.google.gwt.safehtml.shared.UriUtils.encode;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
@@ -58,6 +55,8 @@ import static org.eclipse.che.ide.rest.HTTPHeader.CONTENT_TYPE;
  * @author Vitaly Parfonov
  * @author Artem Zatsarynnyi
  * @author Valeriy Svydenko
+ * @author Oleksander Andriienko
+ *
  * @see ProjectServiceClient
  */
 public class ProjectServiceClientImpl implements ProjectServiceClient {
@@ -185,7 +184,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
     @Override
     public Promise<List<ProjectConfigDto>> createBatchProjects(List<NewProjectConfigDto> configurations) {
-        final String url = encode(getBaseUrl() + BATCH_PROJECTS);
+        final String url =getBaseUrl() + BATCH_PROJECTS;
         final String loaderMessage = configurations.size() > 1 ? "Creating the batch of projects..." : "Creating project...";
         return reqFactory.createPostRequest(url, configurations)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -228,7 +227,6 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ItemReference> createFolder(Path path) {
-        Log.info(getClass(), "|" + path.toString() + "|");
         final String url = encode(getBaseUrl() + FOLDER + path(path.toString()));
 
         return reqFactory.createPostRequest(url, null)
@@ -242,7 +240,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
         final String url = encode(getBaseUrl() + path(path.toString()));
 
         return reqFactory.createRequest(DELETE, url, null, false)
-                         .loader(loaderFactory.newLoader("Deleting project..."))
+                         .loader(loaderFactory.newLoader("Deleting resource..."))
                          .send();
     }
 
