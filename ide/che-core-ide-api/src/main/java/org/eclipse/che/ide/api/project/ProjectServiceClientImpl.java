@@ -33,6 +33,7 @@ import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
 import org.eclipse.che.ide.rest.UrlBuilder;
 import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
+import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +43,7 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gwt.http.client.RequestBuilder.DELETE;
 import static com.google.gwt.http.client.RequestBuilder.PUT;
-import static com.google.gwt.safehtml.shared.UriUtils.encode;
+import static elemental.client.Browser.encodeURIComponent;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 import static org.eclipse.che.ide.rest.HTTPHeader.CONTENT_TYPE;
@@ -108,7 +109,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<SourceEstimation> estimate(Path path, String pType) {
-        final String url = encode(getBaseUrl() + ESTIMATE + path(path.toString()) + "?type=" + pType);
+        final String url = getBaseUrl() + ESTIMATE + encodePath(path) + "?type=" + pType;
 
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -119,7 +120,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<List<SourceEstimation>> resolveSources(Path path) {
-        final String url = encode(getBaseUrl() + RESOLVE + path(path.toString()));
+        final String url = getBaseUrl() + RESOLVE + encodePath(path);
 
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -130,7 +131,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> importProject(Path path, SourceStorageDto source) {
-        String url = encode(getBaseUrl() + IMPORT + path(path.toString()));
+        String url = getBaseUrl() + IMPORT + encodePath(path);
 
         return reqFactory.createPostRequest(url, source)
                          .header(CONTENT_TYPE, APPLICATION_JSON)
@@ -139,9 +140,10 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
     /** {@inheritDoc} */
     @Override
-    public Promise<List<SearchResult>> search(QueryExpression expression) {
+    public Promise<List<SearchResult>> search(QueryExpression expression) { //todo
+        String query = (isNullOrEmpty(expression.getPath()) ? Path.ROOT.toString() : path(expression.getPath()));
         final String url =
-                encode(getBaseUrl() + SEARCH + (isNullOrEmpty(expression.getPath()) ? Path.ROOT : path(expression.getPath())));
+               getBaseUrl() + SEARCH + query;
 
         StringBuilder queryParameters = new StringBuilder();
         if (expression.getName() != null && !expression.getName().isEmpty()) {
@@ -195,7 +197,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ItemReference> createFile(Path path, String content) {
-        final String url = encode(getBaseUrl() + FILE + path(path.parent().toString()) + "?name=" + path.lastSegment());
+        final String url = getBaseUrl() + FILE + encodePath(path.parent()) + "?name=" + path.lastSegment();
 
         return reqFactory.createPostRequest(url, null)
                          .data(content)
@@ -206,7 +208,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<String> getFileContent(Path path) {
-        final String url = encode(getBaseUrl() + FILE + path(path.toString()));
+        final String url = getBaseUrl() + FILE + encodePath(path);
 
         return reqFactory.createGetRequest(url)
                          .loader(loaderFactory.newLoader("Loading file content..."))
@@ -216,7 +218,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> setFileContent(Path path, String content) {
-        final String url = encode(getBaseUrl() + FILE + path(path.toString()));
+        final String url = getBaseUrl() + FILE + encodePath(path);
 
         return reqFactory.createRequest(PUT, url, null, false)
                          .data(content)
@@ -227,7 +229,8 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ItemReference> createFolder(Path path) {
-        final String url = encode(getBaseUrl() + FOLDER + path(path.toString()));
+        final String url = getBaseUrl() + FOLDER + encodePath(path);
+        Log.info(getClass(), "ENCODE: " + url);
 
         return reqFactory.createPostRequest(url, null)
                          .loader(loaderFactory.newLoader("Creating folder..."))
@@ -237,7 +240,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> deleteItem(Path path) {
-        final String url = encode(getBaseUrl() + path(path.toString()));
+        final String url = getBaseUrl() + encodePath(path);
 
         return reqFactory.createRequest(DELETE, url, null, false)
                          .loader(loaderFactory.newLoader("Deleting resource..."))
@@ -247,7 +250,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> copy(Path source, Path target, String newName, boolean overwrite) {
-        final String url = encode(getBaseUrl() + COPY + path(source.toString()) + "?to=" + target.toString());
+        final String url = getBaseUrl() + COPY + encodePath(source) + "?to=" + encodePath(target);
 
         final CopyOptions copyOptions = dtoFactory.createDto(CopyOptions.class);
         copyOptions.setName(newName);
@@ -261,7 +264,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<Void> move(Path source, Path target, String newName, boolean overwrite) {
-        final String url = encode(getBaseUrl() + MOVE + path(source.toString()) + "?to=" + target.toString());
+        final String url = getBaseUrl() + MOVE + encodePath(source) + "?to=" + encodePath(target);
 
         final MoveOptions moveOptions = dtoFactory.createDto(MoveOptions.class);
         moveOptions.setName(newName);
@@ -276,7 +279,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     @Override
     public Promise<TreeElement> getTree(Path path, int depth, boolean includeFiles) {
         final String url =
-                encode(getBaseUrl() + TREE + path(path.toString()) + "?depth=" + depth + "&includeFiles=" + includeFiles);
+               getBaseUrl() + TREE + encodePath(path) + "?depth=" + depth + "&includeFiles=" + includeFiles;
 
         // temporary workaround for CHE-3467, remove loader for disable UI blocking
         // later this loader should be added with the new mechanism of client-server synchronization
@@ -289,7 +292,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ItemReference> getItem(Path path) {
-        final String url = encode(getBaseUrl() + ITEM + path(path.toString()));
+        final String url = getBaseUrl() + ITEM + encodePath(path);
 
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -300,7 +303,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ProjectConfigDto> getProject(Path path) {
-        final String url = encode(getBaseUrl() + path(path.toString()));
+        final String url = getBaseUrl() + encodePath(path);
 
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -310,8 +313,8 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
     /** {@inheritDoc} */
     @Override
-    public Promise<ProjectConfigDto> updateProject(ProjectConfigDto configuration) {
-        final String url = encode(getBaseUrl() + path(configuration.getPath()));
+    public Promise<ProjectConfigDto> updateProject(ProjectConfigDto configuration) {//todo... why in the conf get path is string ?
+        final String url = getBaseUrl() + path(configuration.getPath());
 
         return reqFactory.createRequest(PUT, url, configuration, false)
                          .header(CONTENT_TYPE, MimeType.APPLICATION_JSON)
@@ -349,5 +352,22 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
         }
 
         return path.startsWith("/") ? path : '/' + path;
+    }
+
+    //move this method to Path
+    private String encodePath(Path path) {
+        StringBuilder encodedPath = new StringBuilder();
+        encodedPath.append("/");
+
+        for (String segment: path.segments()) {
+            encodedPath.append(encodeURIComponent(segment));
+            encodedPath.append("/");
+        }
+
+        if (path.segmentCount() > 0) {
+            encodedPath.deleteCharAt(encodedPath.length() - 1);
+        }
+
+        return encodedPath.toString();
     }
 }
