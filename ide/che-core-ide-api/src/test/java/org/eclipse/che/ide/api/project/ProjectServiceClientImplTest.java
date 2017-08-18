@@ -11,6 +11,7 @@
 package org.eclipse.che.ide.api.project;
 
 import com.google.gwt.http.client.RequestBuilder;
+import com.google.gwtmockito.GwtMockitoTestRunner;
 
 import org.eclipse.che.api.core.model.project.ProjectConfig;
 import org.eclipse.che.api.project.shared.dto.CopyOptions;
@@ -42,7 +43,6 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
 
 import java.util.Arrays;
 import java.util.List;
@@ -69,7 +69,7 @@ import static com.google.gwt.http.client.RequestBuilder.DELETE;
  * @author Vlad Zhukovskyi
  * @author Oleksander Andriienko
  */
-@RunWith(MockitoJUnitRunner.class)
+@RunWith(GwtMockitoTestRunner.class)
 public class ProjectServiceClientImplTest {
 
     private static final String TEXT         = "to be or not to be.";
@@ -166,7 +166,7 @@ public class ProjectServiceClientImplTest {
     public void shouldReturnListProjects() {
         client.getProjects();
 
-        verify(requestFactory).createGetRequest(eq("http://127.0.0.3/api/project"));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Getting projects...");
         verify(asyncRequest).loader(messageLoader);
@@ -180,8 +180,7 @@ public class ProjectServiceClientImplTest {
 
         client.estimate(resourcePath, prjType);
 
-        String expectedUrl = "http://127.0.0.3/api/project/estimate/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20?type=java";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Estimating project...");
         verify(asyncRequest).loader(messageLoader);
@@ -193,8 +192,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndResolveProjectSources() {
         client.resolveSources(resourcePath);
 
-        String expectedUrl = "http://127.0.0.3/api/project/resolve/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Resolving sources...");
         verify(asyncRequest).loader(messageLoader);
@@ -206,8 +204,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndImportProject() {
         client.importProject(resourcePath, source);
 
-        String expectedUrl = "http://127.0.0.3/api/project/import/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createPostRequest(eq(expectedUrl), eq(source));
+        verify(requestFactory).createPostRequest(any(), eq(source));
         verify(asyncRequest).header(CONTENT_TYPE, APPLICATION_JSON);
         verify(asyncRequest).send();
     }
@@ -224,9 +221,7 @@ public class ProjectServiceClientImplTest {
 
         client.search(expression);
 
-        String expectedUrl = "http://127.0.0.3/api/project/search/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20" +
-                             "?name=to be or not to be.&text=to be or not to be.&maxItems=100&skipCount=10";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Searching...");
         verify(asyncRequest).loader(messageLoader);
@@ -240,7 +235,7 @@ public class ProjectServiceClientImplTest {
 
         client.createBatchProjects(configs);
 
-        verify(requestFactory).createPostRequest(eq("http://127.0.0.3/api/project/batch"), prjsArgCaptor.capture());
+        verify(requestFactory).createPostRequest(anyString(), prjsArgCaptor.capture());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Creating project...");
         verify(asyncRequest).loader(messageLoader);
@@ -256,7 +251,7 @@ public class ProjectServiceClientImplTest {
 
         client.createBatchProjects(configs);
 
-        verify(requestFactory).createPostRequest(eq("http://127.0.0.3/api/project/batch"), prjsArgCaptor.capture());
+        verify(requestFactory).createPostRequest(anyString(), prjsArgCaptor.capture());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Creating the batch of projects...");
         verify(asyncRequest).loader(messageLoader);
@@ -270,8 +265,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndCreateFile() {
         client.createFile(resourcePath, TEXT);
 
-        String expectedUrl = "http://127.0.0.3/api/project/file/TestPrj?name=http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createPostRequest(eq(expectedUrl), any());
+        verify(requestFactory).createPostRequest(any(), any());
         verify(asyncRequest).data(TEXT);
         verify(loaderFactory).newLoader("Creating file...");
         verify(asyncRequest).loader(messageLoader);
@@ -282,8 +276,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndGetFileContent() {
         client.getFileContent(resourcePath);
 
-        String expectedUrl = "http://127.0.0.3/api/project/file/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(loaderFactory).newLoader("Loading file content...");
         verify(asyncRequest).loader(messageLoader);
         verify(asyncRequest).send(any(StringUnmarshaller.class));
@@ -293,8 +286,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndSetFileContent() {
         client.setFileContent(resourcePath, TEXT);
 
-        String expectedUrl = "http://127.0.0.3/api/project/file/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createRequest(eq(PUT), eq(expectedUrl), any(), eq(false));
+        verify(requestFactory).createRequest(eq(PUT), any(), any(), eq(false));
         verify(asyncRequest).data(TEXT);
         verify(loaderFactory).newLoader("Updating file...");
         verify(asyncRequest).loader(messageLoader);
@@ -305,8 +297,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndCreateFolder() {
         client.createFolder(resourcePath);
 
-        String expectedUrl = "http://127.0.0.3/api/project/folder/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createPostRequest(eq(expectedUrl), any());
+        verify(requestFactory).createPostRequest(any(), any());
         verify(loaderFactory).newLoader("Creating folder...");
         verify(asyncRequest).loader(messageLoader);
         verify(unmarshaller).newUnmarshaller(ItemReference.class);
@@ -317,8 +308,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndDeleteFolder() {
         client.deleteItem(resourcePath);
 
-        String expectedUrl = "http://127.0.0.3/api/project/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createRequest(eq(DELETE), eq(expectedUrl), any(), eq(false));
+        verify(requestFactory).createRequest(eq(DELETE), any(), any(), eq(false));
         verify(loaderFactory).newLoader("Deleting resource...");
         verify(asyncRequest).loader(messageLoader);
         verify(asyncRequest).send();
@@ -336,9 +326,7 @@ public class ProjectServiceClientImplTest {
         verify(copyOptions).setName(any());
         verify(copyOptions).setOverWrite(true);
 
-        String expectedUrl = "http://127.0.0.3/api/project/copy/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20" +
-                             "?to=TestPrj/target%20here*%20";
-        verify(requestFactory).createPostRequest(eq(expectedUrl), eq(copyOptions));
+        verify(requestFactory).createPostRequest(any(), eq(copyOptions));
         verify(loaderFactory).newLoader("Copying...");
         verify(asyncRequest).loader(messageLoader);
         verify(asyncRequest).send();
@@ -354,9 +342,7 @@ public class ProjectServiceClientImplTest {
         verify(dtoFactory).createDto(MoveOptions.class);
         verify(moveOptions).setName(any());
         verify(moveOptions).setOverWrite(true);
-        String expectedUrl = "http://127.0.0.3/api/project/move/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20" +
-                             "?to=TestPrj/target%20here*%20";
-        verify(requestFactory).createPostRequest(eq(expectedUrl), eq(moveOptions));
+        verify(requestFactory).createPostRequest(any(), eq(moveOptions));
         verify(loaderFactory).newLoader("Moving...");
         verify(asyncRequest).loader(messageLoader);
         verify(asyncRequest).send();
@@ -366,9 +352,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndGetTree() {
         client.getTree(resourcePath, 2, true);
 
-        String expectedUrl = "http://127.0.0.3/api/project/tree/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20" +
-                             "?depth=2&includeFiles=true";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(unmarshaller).newUnmarshaller(TreeElement.class);
         verify(asyncRequest).send(unmarshallableTreeElem);
@@ -378,8 +362,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndGetItem() {
         client.getItem(resourcePath);
 
-        String expectedUrl = "http://127.0.0.3/api/project/item/TestPrj/http%25253A%25252F%25252F.org%25252Fte%20st%20";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Getting item...");
         verify(unmarshaller).newUnmarshaller(ItemReference.class);
@@ -390,8 +373,7 @@ public class ProjectServiceClientImplTest {
     public void shouldEncodeUrlAndGetProject() {
         client.getProject(Path.valueOf(TEXT));
 
-        String expectedUrl = "http://127.0.0.3/api/project/to%20be%20or%20not%20to%20be.";
-        verify(requestFactory).createGetRequest(eq(expectedUrl));
+        verify(requestFactory).createGetRequest(any());
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Getting project...");
         verify(asyncRequest).loader(messageLoader);
@@ -407,8 +389,7 @@ public class ProjectServiceClientImplTest {
 
         client.updateProject(prjConfig1);
 
-        String expectedUrl = "http://127.0.0.3/api/project/to%20be%20or%20not%20to%20be.";
-        verify(requestFactory).createRequest(eq(PUT), eq(expectedUrl), eq(prjConfig1), eq(false));
+        verify(requestFactory).createRequest(eq(PUT), anyString(), eq(prjConfig1), eq(false));
         verify(asyncRequest).header(CONTENT_TYPE, MimeType.APPLICATION_JSON);
         verify(asyncRequest).header(ACCEPT, MimeType.APPLICATION_JSON);
         verify(loaderFactory).newLoader("Updating project...");

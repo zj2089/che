@@ -33,7 +33,6 @@ import org.eclipse.che.ide.rest.DtoUnmarshallerFactory;
 import org.eclipse.che.ide.rest.StringUnmarshaller;
 import org.eclipse.che.ide.rest.UrlBuilder;
 import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
-import org.eclipse.che.ide.util.loging.Log;
 
 import java.util.Collections;
 import java.util.List;
@@ -43,7 +42,8 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gwt.http.client.RequestBuilder.DELETE;
 import static com.google.gwt.http.client.RequestBuilder.PUT;
-import static elemental.client.Browser.encodeURIComponent;
+import static com.google.gwt.http.client.URL.encodePathSegment;
+import static com.google.gwt.http.client.URL.encodeQueryString;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.resource.Path.valueOf;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
@@ -110,7 +110,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<SourceEstimation> estimate(Path path, String pType) {
-        final String url = getBaseUrl() + ESTIMATE + encodePath(path) + "?type=" + pType;
+        final String url = getBaseUrl() + ESTIMATE + encodePath(path) + "?type=" + encodeQueryString(pType);
 
         return reqFactory.createGetRequest(url)
                          .header(ACCEPT, MimeType.APPLICATION_JSON)
@@ -142,7 +142,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<List<SearchResult>> search(QueryExpression expression) {
-        Path prjPath = (isNullOrEmpty(expression.getPath()) ? Path.ROOT : valueOf(expression.getPath()));
+        Path prjPath = isNullOrEmpty(expression.getPath()) ? Path.ROOT : valueOf(expression.getPath());
         final String url = getBaseUrl() + SEARCH + encodePath(prjPath);
 
         StringBuilder queryParameters = new StringBuilder();
@@ -197,7 +197,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ItemReference> createFile(Path path, String content) {
-        final String url = getBaseUrl() + FILE + encodePath(path.parent()) + "?name=" + path.lastSegment();
+        final String url = getBaseUrl() + FILE + encodePath(path.parent()) + "?name=" + encodeQueryString(path.lastSegment());
 
         return reqFactory.createPostRequest(url, null)
                          .data(content)
@@ -230,7 +230,6 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     @Override
     public Promise<ItemReference> createFolder(Path path) {
         final String url = getBaseUrl() + FOLDER + encodePath(path);
-        Log.info(getClass(), "ENCODE: " + url);
 
         return reqFactory.createPostRequest(url, null)
                          .loader(loaderFactory.newLoader("Creating folder..."))
@@ -334,11 +333,18 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
         return appContext.getDevMachine().getWsAgentBaseUrl() + PROJECT;
     }
 
+    /**
+     * Returns encoded string of the {@code path} normalized by leading separator.
+     * @see org.eclipse.che.ide.api.resources.Resource
+     * @see org.eclipse.che.ide.resource.Path
+     * @param path to encode
+     */
     private String encodePath(Path path) {
         StringBuilder encodedPath = new StringBuilder();
+        encodedPath.append("/");
 
         for (String segment: path.segments()) {
-            encodedPath.append(encodeURIComponent(segment));
+            encodedPath.append(encodePathSegment(segment));
             encodedPath.append("/");
         }
 
@@ -346,8 +352,6 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
             encodedPath.deleteCharAt(encodedPath.length() - 1);
         }
 
-        // todo maybe we should have separated method normalizePath
-        /* Normalizes the path by adding a leading '/' if it doesn't exist.*/
-        return encodedPath.charAt(0) == '/' ? encodedPath.toString() : '/' + encodedPath.toString();
+        return encodedPath.toString();
     }
 }
