@@ -45,6 +45,7 @@ import static com.google.gwt.http.client.RequestBuilder.DELETE;
 import static com.google.gwt.http.client.RequestBuilder.PUT;
 import static elemental.client.Browser.encodeURIComponent;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
+import static org.eclipse.che.ide.resource.Path.valueOf;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 import static org.eclipse.che.ide.rest.HTTPHeader.CONTENT_TYPE;
 
@@ -140,10 +141,9 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
     /** {@inheritDoc} */
     @Override
-    public Promise<List<SearchResult>> search(QueryExpression expression) { //todo
-        String query = (isNullOrEmpty(expression.getPath()) ? Path.ROOT.toString() : path(expression.getPath()));
-        final String url =
-               getBaseUrl() + SEARCH + query;
+    public Promise<List<SearchResult>> search(QueryExpression expression) {
+        Path prjPath = (isNullOrEmpty(expression.getPath()) ? Path.ROOT : valueOf(expression.getPath()));
+        final String url = getBaseUrl() + SEARCH + encodePath(prjPath);
 
         StringBuilder queryParameters = new StringBuilder();
         if (expression.getName() != null && !expression.getName().isEmpty()) {
@@ -314,7 +314,8 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     /** {@inheritDoc} */
     @Override
     public Promise<ProjectConfigDto> updateProject(ProjectConfigDto configuration) {//todo... why in the conf get path is string ?
-        final String url = getBaseUrl() + path(configuration.getPath());
+        Path prjPath = valueOf(configuration.getPath());
+        final String url = getBaseUrl() + encodePath(prjPath);
 
         return reqFactory.createRequest(PUT, url, configuration, false)
                          .header(CONTENT_TYPE, MimeType.APPLICATION_JSON)
@@ -333,31 +334,8 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
         return appContext.getDevMachine().getWsAgentBaseUrl() + PROJECT;
     }
 
-    /**
-     * Normalizes the path by adding a leading '/' if it doesn't exist.
-     * Also escapes some special characters.
-     * <p/>
-     * See following javascript functions for details:
-     * escape() will not encode: @ * / +
-     * encodeURI() will not encode: ~ ! @ # $ & * ( ) = : / , ; ? + '
-     * encodeURIComponent() will not encode: ~ ! * ( ) '
-     *
-     * @param path
-     *         path to normalize
-     * @return normalized path
-     */
-    private String path(String path) {
-        while (path.indexOf('+') >= 0) {
-            path = path.replace("+", "%2B");
-        }
-
-        return path.startsWith("/") ? path : '/' + path;
-    }
-
-    //move this method to Path
     private String encodePath(Path path) {
         StringBuilder encodedPath = new StringBuilder();
-        encodedPath.append("/");
 
         for (String segment: path.segments()) {
             encodedPath.append(encodeURIComponent(segment));
@@ -368,6 +346,8 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
             encodedPath.deleteCharAt(encodedPath.length() - 1);
         }
 
-        return encodedPath.toString();
+        // todo maybe we should have separated method normalizePath
+        /* Normalizes the path by adding a leading '/' if it doesn't exist.*/
+        return encodedPath.charAt(0) == '/' ? encodedPath.toString() : '/' + encodedPath.toString();
     }
 }
