@@ -13,7 +13,7 @@ package org.eclipse.che.ide.api.project;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.gwt.http.client.RequestBuilder.DELETE;
 import static com.google.gwt.http.client.RequestBuilder.PUT;
-import static com.google.gwt.safehtml.shared.UriUtils.encodeAllowEscapes;
+import static com.google.gwt.safehtml.shared.UriUtils.encode;
 import static org.eclipse.che.ide.MimeType.APPLICATION_JSON;
 import static org.eclipse.che.ide.rest.HTTPHeader.ACCEPT;
 import static org.eclipse.che.ide.rest.HTTPHeader.CONTENT_TYPE;
@@ -36,7 +36,6 @@ import org.eclipse.che.api.workspace.shared.dto.ProjectConfigDto;
 import org.eclipse.che.api.workspace.shared.dto.SourceStorageDto;
 import org.eclipse.che.ide.MimeType;
 import org.eclipse.che.ide.api.app.AppContext;
-import org.eclipse.che.ide.api.machine.WsAgentStateController;
 import org.eclipse.che.ide.api.resources.SearchResult;
 import org.eclipse.che.ide.dto.DtoFactory;
 import org.eclipse.che.ide.resource.Path;
@@ -55,6 +54,7 @@ import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
  * @author Vitaly Parfonov
  * @author Artem Zatsarynnyi
  * @author Valeriy Svydenko
+ * @author Oleksander Andriienko
  * @see ProjectServiceClient
  */
 public class ProjectServiceClientImpl implements ProjectServiceClient {
@@ -73,7 +73,6 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   private static final String RESOLVE = "/resolve";
   private static final String ESTIMATE = "/estimate";
 
-  private final WsAgentStateController wsAgentStateController;
   private final LoaderFactory loaderFactory;
   private final AsyncRequestFactory reqFactory;
   private final DtoFactory dtoFactory;
@@ -82,13 +81,11 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
 
   @Inject
   protected ProjectServiceClientImpl(
-      WsAgentStateController wsAgentStateController,
       LoaderFactory loaderFactory,
       AsyncRequestFactory reqFactory,
       DtoFactory dtoFactory,
       DtoUnmarshallerFactory unmarshaller,
       AppContext appContext) {
-    this.wsAgentStateController = wsAgentStateController;
     this.loaderFactory = loaderFactory;
     this.reqFactory = reqFactory;
     this.dtoFactory = dtoFactory;
@@ -104,14 +101,14 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
     return reqFactory
         .createGetRequest(url)
         .header(ACCEPT, MimeType.APPLICATION_JSON)
+        .loader(loaderFactory.newLoader("Getting projects..."))
         .send(unmarshaller.newListUnmarshaller(ProjectConfigDto.class));
   }
 
   /** {@inheritDoc} */
   @Override
   public Promise<SourceEstimation> estimate(Path path, String pType) {
-    final String url =
-        encodeAllowEscapes(getBaseUrl() + ESTIMATE + path(path.toString()) + "?type=" + pType);
+    final String url = encode(getBaseUrl() + ESTIMATE + path(path.toString()) + "?type=" + pType);
 
     return reqFactory
         .createGetRequest(url)
@@ -123,7 +120,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<List<SourceEstimation>> resolveSources(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + RESOLVE + path(path.toString()));
+    final String url = encode(getBaseUrl() + RESOLVE + path(path.toString()));
 
     return reqFactory
         .createGetRequest(url)
@@ -135,7 +132,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<Void> importProject(Path path, SourceStorageDto source) {
-    String url = encodeAllowEscapes(getBaseUrl() + IMPORT + path(path.toString()));
+    String url = encode(getBaseUrl() + IMPORT + path(path.toString()));
 
     return reqFactory.createPostRequest(url, source).header(CONTENT_TYPE, APPLICATION_JSON).send();
   }
@@ -144,7 +141,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<List<SearchResult>> search(QueryExpression expression) {
     final String url =
-        encodeAllowEscapes(
+        encode(
             getBaseUrl()
                 + SEARCH
                 + (isNullOrEmpty(expression.getPath()) ? Path.ROOT : path(expression.getPath())));
@@ -199,7 +196,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<List<ProjectConfigDto>> createBatchProjects(
       List<NewProjectConfigDto> configurations) {
-    final String url = encodeAllowEscapes(getBaseUrl() + BATCH_PROJECTS);
+    final String url = getBaseUrl() + BATCH_PROJECTS;
     final String loaderMessage =
         configurations.size() > 1 ? "Creating the batch of projects..." : "Creating project...";
     return reqFactory
@@ -213,7 +210,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<ItemReference> createFile(Path path, String content) {
     final String url =
-        encodeAllowEscapes(
+        encode(
             getBaseUrl() + FILE + path(path.parent().toString()) + "?name=" + path.lastSegment());
 
     return reqFactory
@@ -226,23 +223,30 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<String> getFileContent(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + FILE + path(path.toString()));
+    final String url = encode(getBaseUrl() + FILE + path(path.toString()));
 
-    return reqFactory.createGetRequest(url).send(new StringUnmarshaller());
+    return reqFactory
+        .createGetRequest(url)
+        .loader(loaderFactory.newLoader("Loading file content..."))
+        .send(new StringUnmarshaller());
   }
 
   /** {@inheritDoc} */
   @Override
   public Promise<Void> setFileContent(Path path, String content) {
-    final String url = encodeAllowEscapes(getBaseUrl() + FILE + path(path.toString()));
+    final String url = encode(getBaseUrl() + FILE + path(path.toString()));
 
-    return reqFactory.createRequest(PUT, url, null, false).data(content).send();
+    return reqFactory
+        .createRequest(PUT, url, null, false)
+        .data(content)
+        .loader(loaderFactory.newLoader("Updating file..."))
+        .send();
   }
 
   /** {@inheritDoc} */
   @Override
   public Promise<ItemReference> createFolder(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + FOLDER + path(path.toString()));
+    final String url = encode(getBaseUrl() + FOLDER + path(path.toString()));
 
     return reqFactory
         .createPostRequest(url, null)
@@ -253,11 +257,11 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<Void> deleteItem(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + path(path.toString()));
+    final String url = encode(getBaseUrl() + path(path.toString()));
 
     return reqFactory
         .createRequest(DELETE, url, null, false)
-        .loader(loaderFactory.newLoader("Deleting project..."))
+        .loader(loaderFactory.newLoader("Deleting resource..."))
         .send();
   }
 
@@ -265,8 +269,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<Void> copy(Path source, Path target, String newName, boolean overwrite) {
     final String url =
-        encodeAllowEscapes(
-            getBaseUrl() + COPY + path(source.toString()) + "?to=" + target.toString());
+        encode(getBaseUrl() + COPY + path(source.toString()) + "?to=" + target.toString());
 
     final CopyOptions copyOptions = dtoFactory.createDto(CopyOptions.class);
     copyOptions.setName(newName);
@@ -282,8 +285,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<Void> move(Path source, Path target, String newName, boolean overwrite) {
     final String url =
-        encodeAllowEscapes(
-            getBaseUrl() + MOVE + path(source.toString()) + "?to=" + target.toString());
+        encode(getBaseUrl() + MOVE + path(source.toString()) + "?to=" + target.toString());
 
     final MoveOptions moveOptions = dtoFactory.createDto(MoveOptions.class);
     moveOptions.setName(newName);
@@ -299,7 +301,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   @Override
   public Promise<TreeElement> getTree(Path path, int depth, boolean includeFiles) {
     final String url =
-        encodeAllowEscapes(
+        encode(
             getBaseUrl()
                 + TREE
                 + path(path.toString())
@@ -320,7 +322,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<ItemReference> getItem(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + ITEM + path(path.toString()));
+    final String url = encode(getBaseUrl() + ITEM + path(path.toString()));
 
     return reqFactory
         .createGetRequest(url)
@@ -332,7 +334,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<ProjectConfigDto> getProject(Path path) {
-    final String url = encodeAllowEscapes(getBaseUrl() + path(path.toString()));
+    final String url = encode(getBaseUrl() + path(path.toString()));
 
     return reqFactory
         .createGetRequest(url)
@@ -344,7 +346,7 @@ public class ProjectServiceClientImpl implements ProjectServiceClient {
   /** {@inheritDoc} */
   @Override
   public Promise<ProjectConfigDto> updateProject(ProjectConfigDto configuration) {
-    final String url = encodeAllowEscapes(getBaseUrl() + path(configuration.getPath()));
+    final String url = encode(getBaseUrl() + path(configuration.getPath()));
 
     return reqFactory
         .createRequest(PUT, url, configuration, false)
