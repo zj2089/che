@@ -10,18 +10,12 @@
  */
 package org.eclipse.che.ide.api.machine;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.newArrayList;
-import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
-import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
-import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
-
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
-import java.util.List;
+
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
@@ -43,6 +37,14 @@ import org.eclipse.che.ide.websocket.events.ConnectionClosedHandler;
 import org.eclipse.che.ide.websocket.events.ConnectionErrorHandler;
 import org.eclipse.che.ide.websocket.events.ConnectionOpenedHandler;
 import org.eclipse.che.ide.websocket.events.WebSocketClosedEvent;
+
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.Lists.newArrayList;
+import static org.eclipse.che.api.core.model.workspace.WorkspaceStatus.RUNNING;
+import static org.eclipse.che.ide.api.machine.WsAgentState.STARTED;
+import static org.eclipse.che.ide.api.machine.WsAgentState.STOPPED;
 
 /**
  * Controls workspace agent's state, defines actions to be perform on different events related to
@@ -233,7 +235,7 @@ public class WsAgentStateController
     if (messageBus != null) {
       messageBus.cancelReconnection();
     }
-    messageBus = messageBusProvider.createMachineMessageBus(devMachine.getWsAgentWebSocketUrl());
+    messageBus = messageBusProvider.createMachineMessageBus(devMachine.getWsAgentWebSocketUrl().replaceFirst("api/ws", "wsagent"));
     messageBus.addOnCloseHandler(this);
     messageBus.addOnErrorHandler(this);
     messageBus.addOnOpenHandler(this);
