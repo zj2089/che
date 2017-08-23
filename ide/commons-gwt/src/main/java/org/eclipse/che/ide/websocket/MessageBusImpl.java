@@ -19,6 +19,7 @@ import static com.google.gwt.user.client.Window.Location.getProtocol;
  * @author Artem Zatsarynnyi
  * @author Dmitry Shnurenko
  */
+@Deprecated
 public class MessageBusImpl extends AbstractMessageBus {
 
   public MessageBusImpl() {

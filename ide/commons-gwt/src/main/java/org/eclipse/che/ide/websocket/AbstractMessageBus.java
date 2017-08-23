@@ -14,10 +14,7 @@ import com.google.gwt.core.client.JavaScriptException;
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.rpc.AsyncCallback;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+
 import org.eclipse.che.ide.rest.HTTPHeader;
 import org.eclipse.che.ide.util.ListenerManager;
 import org.eclipse.che.ide.util.loging.Log;
@@ -32,7 +29,13 @@ import org.eclipse.che.ide.websocket.rest.Pair;
 import org.eclipse.che.ide.websocket.rest.RequestCallback;
 import org.eclipse.che.ide.websocket.rest.SubscriptionHandler;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 /** @author Dmitry Shnurenko */
+@Deprecated
 abstract class AbstractMessageBus implements MessageBus {
   /** Period (in milliseconds) to send heartbeat pings. */
   private static final int HEARTBEAT_PERIOD = 50 * 1000;

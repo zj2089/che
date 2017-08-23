@@ -11,6 +11,7 @@
 package org.eclipse.che.ide.websocket;
 
 /** @author Dmitry Shnurenko */
+@Deprecated
 public class MachineMessageBus extends AbstractMessageBus {
 
   public MachineMessageBus(String workspaceUrl) {

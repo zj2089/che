@@ -12,6 +12,7 @@ package org.eclipse.che.ide.connection;
 
 import com.google.inject.Inject;
 import com.google.web.bindery.event.shared.EventBus;
+
 import org.eclipse.che.ide.api.ConnectionClosedInformer;
 import org.eclipse.che.ide.api.event.HttpSessionDestroyedEvent;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceStartedEvent;

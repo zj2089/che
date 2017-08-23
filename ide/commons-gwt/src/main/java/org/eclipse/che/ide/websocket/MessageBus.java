@@ -24,6 +24,7 @@ import org.eclipse.che.ide.websocket.rest.RequestCallback;
  *
  * @author Artem Zatsarynnyi
  */
+@Deprecated
 public interface MessageBus extends MessageReceivedHandler {
   /** This enumeration used to describe the ready state of the WebSocket connection. */
   public static enum ReadyState {

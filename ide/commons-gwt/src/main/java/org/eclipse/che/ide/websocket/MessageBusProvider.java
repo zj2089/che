@@ -19,6 +19,7 @@ import com.google.inject.Singleton;
  * @author Dmitry Shnurenko
  */
 @Singleton
+@Deprecated
 public class MessageBusProvider {
 
   private MessageBus messageBus;
