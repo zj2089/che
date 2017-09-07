@@ -114,12 +114,6 @@ public class WsMasterModule extends AbstractModule {
     bind(org.eclipse.che.everrest.ETagResponseFilter.class);
     bind(org.eclipse.che.api.agent.server.AgentRegistryService.class);
 
-    bind(org.eclipse.che.security.oauth.OAuthAuthenticatorProvider.class)
-        .to(org.eclipse.che.security.oauth.OAuthAuthenticatorProviderImpl.class);
-    bind(org.eclipse.che.security.oauth.shared.OAuthTokenProvider.class)
-        .to(org.eclipse.che.security.oauth.OAuthAuthenticatorTokenProvider.class);
-    bind(org.eclipse.che.security.oauth.OAuthAuthenticationService.class);
-
     bind(org.eclipse.che.api.core.notification.WSocketEventBusServer.class);
     // additional ports for development of extensions
     Multibinder<org.eclipse.che.api.core.model.machine.ServerConf> machineServers =

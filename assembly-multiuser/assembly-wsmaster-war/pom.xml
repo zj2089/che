@@ -54,11 +54,11 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.plugin</groupId>
-            <artifactId>che-plugin-keycloak-server</artifactId>
+            <artifactId>che-plugin-keycloak-oauth2</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.plugin</groupId>
-            <artifactId>che-plugin-keycloak-token-provider</artifactId>
+            <artifactId>che-plugin-keycloak-server</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
