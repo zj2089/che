@@ -14,9 +14,12 @@ import com.google.inject.AbstractModule;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.user.server.TokenValidator;
 import org.eclipse.che.api.user.server.spi.ProfileDao;
+import org.eclipse.che.keycloak.server.KeycloakConfiguration;
 import org.eclipse.che.keycloak.server.KeycloakConfigurationService;
 import org.eclipse.che.keycloak.server.KeycloakTokenValidator;
+import org.eclipse.che.keycloak.server.WsMasterKeycloakConfigResolver;
 import org.eclipse.che.keycloak.server.dao.KeycloakProfileDao;
+import org.keycloak.adapters.KeycloakConfigResolver;
 
 public class KeycloakModule extends AbstractModule {
   @Override
@@ -26,6 +29,8 @@ public class KeycloakModule extends AbstractModule {
         .to(org.eclipse.che.keycloak.server.KeycloakHttpJsonRequestFactory.class);
     bind(TokenValidator.class).to(KeycloakTokenValidator.class);
     bind(KeycloakConfigurationService.class);
+    bind(KeycloakConfiguration.class).asEagerSingleton();
+    bind(KeycloakConfigResolver.class).to(WsMasterKeycloakConfigResolver.class);
 
     bind(ProfileDao.class).to(KeycloakProfileDao.class);
   }

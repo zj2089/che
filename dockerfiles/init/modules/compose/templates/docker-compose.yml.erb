@@ -127,6 +127,7 @@ services:
         condition: service_healthy
     ports:
       - '5050:8080'
+      - '8787:8787'
     entrypoint:
       - /opt/jboss/keycloak/bin/standalone.sh
       - -Dkeycloak.migration.action=import
@@ -140,6 +141,8 @@ services:
       - POSTGRES_DATABASE=keycloak
       - POSTGRES_USER=keycloak
       - POSTGRES_PASSWORD=keycloak
+      - DEBUG=true
+      - DEBUG_PORT=8787
     links:
       - postgres:postgres
     volumes:

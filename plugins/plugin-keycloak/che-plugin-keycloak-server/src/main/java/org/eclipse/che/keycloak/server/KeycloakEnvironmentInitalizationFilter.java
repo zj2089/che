@@ -12,8 +12,6 @@ package org.eclipse.che.keycloak.server;
 
 import static java.util.Collections.emptyList;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
 import java.io.IOException;
 import java.security.Principal;
 import javax.inject.Inject;
@@ -40,6 +38,10 @@ import org.eclipse.che.commons.auth.token.RequestTokenExtractor;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
 import org.eclipse.che.commons.subject.SubjectImpl;
+import org.keycloak.KeycloakSecurityContext;
+import org.keycloak.adapters.OidcKeycloakAccount;
+import org.keycloak.adapters.spi.KeycloakAccount;
+import org.keycloak.representations.IDToken;
 
 /**
  * Sets subject attribute into session based on keycloak authentication data.
@@ -77,24 +79,31 @@ public class KeycloakEnvironmentInitalizationFilter implements Filter {
       return;
     }
 
+    KeycloakSecurityContext context =
+        (KeycloakSecurityContext) httpRequest.getAttribute(KeycloakSecurityContext.class.getName());
+    // In case of bearer token login, there is another object in session
+    if (context == null) {
+      OidcKeycloakAccount keycloakAccount =
+          (OidcKeycloakAccount) httpRequest.getAttribute(KeycloakAccount.class.getName());
+      if (keycloakAccount != null) {
+        context = keycloakAccount.getKeycloakSecurityContext();
+      }
+    }
+    if (context == null) {
+      throw new ServletException("Cannot detect or instantiate user");
+    }
+    final IDToken idToken =
+        context.getIdToken() != null ? context.getIdToken() : context.getToken();
+    String tokenString = context.getTokenString();
+
     final HttpSession session = httpRequest.getSession();
     Subject subject = (Subject) session.getAttribute("che_subject");
-    if (subject == null || !subject.getToken().equals(token)) {
-      Jwt jwtToken = (Jwt) httpRequest.getAttribute("token");
-      if (jwtToken == null) {
-        throw new ServletException("Cannot detect or instantiate user.");
-      }
-      Claims claims = (Claims) jwtToken.getBody();
+    if (subject == null || !subject.getToken().equals(tokenString)) {
       User user =
-          getOrCreateUser(
-              claims.getSubject(),
-              claims.get("email", String.class),
-              claims.get("preferred_username", String.class));
-      getOrCreateAccount(
-          claims.get("preferred_username", String.class),
-          claims.get("preferred_username", String.class));
+          getOrCreateUser(idToken.getSubject(), idToken.getEmail(), idToken.getPreferredUsername());
+      getOrCreateAccount(idToken.getPreferredUsername(), idToken.getPreferredUsername());
 
-      subject = new SubjectImpl(user.getName(), user.getId(), token, false);
+      subject = new SubjectImpl(user.getName(), user.getId(), tokenString, false);
       session.setAttribute("che_subject", subject);
     }
 

@@ -10,15 +10,12 @@
  */
 package org.eclipse.che.keycloak.oauth2;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -37,9 +34,11 @@ import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.rest.annotations.Required;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
-import org.eclipse.che.keycloak.shared.KeycloakConstants;
+import org.eclipse.che.keycloak.server.KeycloakConfiguration;
+import org.keycloak.KeycloakSecurityContext;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.common.util.KeycloakUriBuilder;
+import org.keycloak.representations.AccessToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,16 +47,18 @@ import org.slf4j.LoggerFactory;
 public class OAuthAuthenticationService {
   private static final Logger LOG = LoggerFactory.getLogger(OAuthAuthenticationService.class);
 
-  @Context protected UriInfo uriInfo;
+  @Context UriInfo uriInfo;
 
-  @Context protected SecurityContext security;
+  @Context SecurityContext security;
 
-  @Inject
-  @Named(KeycloakConstants.AUTH_SERVER_URL_SETTING)
-  String serverURL;
+  @Inject KeycloakConfiguration keycloakConfiguration;
 
-  @Named(KeycloakConstants.REALM_SETTING)
-  String realm;
+  //  @Inject
+  //  @Named(KeycloakConstants.AUTH_SERVER_URL_SETTING)
+  //  String serverURL;
+  //
+  //  @Named(KeycloakConstants.REALM_SETTING)
+  //  String realm;
 
   //  @Named(KeycloakConstants.CLIENT_ID_SETTING)
   //  String clientId;
@@ -75,6 +76,10 @@ public class OAuthAuthenticationService {
       @Context HttpServletRequest request)
       throws ForbiddenException, BadRequestException {
 
+    KeycloakSecurityContext session =
+        (KeycloakSecurityContext) request.getAttribute(KeycloakSecurityContext.class.getName());
+    AccessToken token = session.getToken();
+    String clientId = token.getIssuedFor();
     String nonce = UUID.randomUUID().toString();
     MessageDigest md = null;
     try {
@@ -82,25 +87,19 @@ public class OAuthAuthenticationService {
     } catch (NoSuchAlgorithmException e) {
       throw new RuntimeException(e);
     }
-    Jws<Claims> jwt = (Jws<Claims>) request.getAttribute("token");
-    String sessionState = jwt.getBody().get("sessionState", String.class);
-    String clientId = jwt.getBody().getIssuer();
-
-    String input = nonce + sessionState + clientId + oauthProvider;
+    String input = nonce + token.getSessionState() + clientId + oauthProvider;
     byte[] check = md.digest(input.getBytes(StandardCharsets.UTF_8));
     String hash = Base64Url.encode(check);
-
-    String redirectUri = redirectAfterLogin;
+    request.getSession().setAttribute("hash", hash);
     String accountLinkUrl =
-        KeycloakUriBuilder.fromUri(serverURL)
+        KeycloakUriBuilder.fromUri(keycloakConfiguration.getServerURL())
             .path("/realms/{realm}/broker/{provider}/link")
             .queryParam("nonce", nonce)
             .queryParam("hash", hash)
             .queryParam("client_id", clientId)
-            .queryParam("redirect_uri", redirectUri)
-            .build(realm, oauthProvider)
+            .queryParam("redirect_uri", redirectAfterLogin)
+            .build(keycloakConfiguration.getRealm(), oauthProvider)
             .toString();
-
     return Response.temporaryRedirect(URI.create(accountLinkUrl)).build();
   }
 
