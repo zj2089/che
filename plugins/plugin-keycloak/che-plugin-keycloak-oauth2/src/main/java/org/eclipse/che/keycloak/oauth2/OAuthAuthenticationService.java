@@ -10,6 +10,7 @@
  */
 package org.eclipse.che.keycloak.oauth2;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -28,40 +29,30 @@ import javax.ws.rs.core.SecurityContext;
 import javax.ws.rs.core.UriInfo;
 import org.eclipse.che.api.auth.shared.dto.OAuthToken;
 import org.eclipse.che.api.core.BadRequestException;
+import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
+import org.eclipse.che.api.core.UnauthorizedException;
+import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.annotations.Required;
-import org.eclipse.che.commons.env.EnvironmentContext;
-import org.eclipse.che.commons.subject.Subject;
+import org.eclipse.che.dto.server.DtoFactory;
 import org.eclipse.che.keycloak.server.KeycloakConfiguration;
 import org.keycloak.KeycloakSecurityContext;
 import org.keycloak.common.util.Base64Url;
 import org.keycloak.common.util.KeycloakUriBuilder;
 import org.keycloak.representations.AccessToken;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** RESTful wrapper for OAuthAuthenticator. */
 @Path("oauth")
 public class OAuthAuthenticationService {
-  private static final Logger LOG = LoggerFactory.getLogger(OAuthAuthenticationService.class);
-
   @Context UriInfo uriInfo;
 
   @Context SecurityContext security;
 
   @Inject KeycloakConfiguration keycloakConfiguration;
 
-  //  @Inject
-  //  @Named(KeycloakConstants.AUTH_SERVER_URL_SETTING)
-  //  String serverURL;
-  //
-  //  @Named(KeycloakConstants.REALM_SETTING)
-  //  String realm;
-
-  //  @Named(KeycloakConstants.CLIENT_ID_SETTING)
-  //  String clientId;
+  @Inject HttpJsonRequestFactory requestFactory;
 
   /**
    * Redirect request
@@ -103,57 +94,6 @@ public class OAuthAuthenticationService {
     return Response.temporaryRedirect(URI.create(accountLinkUrl)).build();
   }
 
-  //  @GET
-  //  @Path("callback")
-  //  public Response callback(@QueryParam("errorValues") List<String> errorValues)
-  //      throws OAuthAuthenticationException, BadRequestException {
-  //    URL requestUrl = getRequestUrl(uriInfo);
-  //    Map<String, List<String>> params = getQueryParametersFromState(getState(requestUrl));
-  //    if (errorValues != null && errorValues.contains("access_denied")) {
-  //      return Response.temporaryRedirect(
-  //              uriInfo.getRequestUriBuilder().replacePath(errorPage).replaceQuery(null).build())
-  //          .build();
-  //    }
-  //    final String providerName = getParameter(params, "oauth_provider");
-  //    OAuthAuthenticator oauth = getAuthenticator(providerName);
-  //    final List<String> scopes = params.get("scope");
-  //    oauth.callback(requestUrl, scopes == null ? Collections.<String>emptyList() : scopes);
-  //    final String redirectAfterLogin = getParameter(params, "redirect_after_login");
-  //    return Response.temporaryRedirect(URI.create(redirectAfterLogin)).build();
-  //  }
-
-  //  /**
-  //   * Gets list of installed OAuth authenticators.
-  //   *
-  //   * @return list of installed OAuth authenticators
-  //   */
-  //  @GET
-  //  @Produces(MediaType.APPLICATION_JSON)
-  //  public Set<OAuthAuthenticatorDescriptor> getRegisteredAuthenticators() {
-  //    Set<OAuthAuthenticatorDescriptor> result = new HashSet<>();
-  //    final UriBuilder uriBuilder = uriInfo.getBaseUriBuilder().clone().path(getClass());
-  //    for (String name : providers.getRegisteredProviderNames()) {
-  //      final List<Link> links = new LinkedList<>();
-  //      links.add(
-  //          LinksHelper.createLink(
-  //              HttpMethod.GET,
-  //              uriBuilder.clone().path(getClass(), "authenticate").build().toString(),
-  //              null,
-  //              null,
-  //              "Authenticate URL",
-  //              newDto(LinkParameter.class)
-  //                  .withName("oauth_provider")
-  //                  .withRequired(true)
-  //                  .withDefaultValue(name),
-  //              newDto(LinkParameter.class)
-  //                  .withName("mode")
-  //                  .withRequired(true)
-  //                  .withDefaultValue("federated_login")));
-  //      result.add(newDto(OAuthAuthenticatorDescriptor.class).withName(name).withLinks(links));
-  //    }
-  //    return result;
-  //  }
-
   /**
    * Gets OAuth token for user.
    *
@@ -165,48 +105,22 @@ public class OAuthAuthenticationService {
   @Path("token")
   @Produces(MediaType.APPLICATION_JSON)
   public OAuthToken token(@Required @QueryParam("oauth_provider") String oauthProvider)
-      throws ServerException, BadRequestException, NotFoundException, ForbiddenException {
-    //OAuthAuthenticator provider = getAuthenticator(oauthProvider);
-    final Subject subject = EnvironmentContext.getCurrent().getSubject();
-    //    try {
-    //      //      OAuthToken token = provider.getToken(subject.getUserId());
-    //      //      if (token == null) {
-    //      //        token = provider.getToken(subject.getUserName());
-    //      //      }
-    //      //      if (token != null) {
-    //      //        return token;
-    //      //      }
-    //      throw new NotFoundException("OAuth token for user " + subject.getUserId() + " was not found");
-    //    } catch (IOException e) {
-    //      throw new ServerException(e.getLocalizedMessage(), e);
-    //    }
-    return null;
+      throws ForbiddenException, BadRequestException, ConflictException, NotFoundException,
+          ServerException, UnauthorizedException {
+
+    try {
+      String token =
+          requestFactory
+              .fromUrl(
+                  KeycloakUriBuilder.fromUri(keycloakConfiguration.getServerURL())
+                      .path("/realms/{realm}/broker/{provider}/token")
+                      .build(keycloakConfiguration.getRealm(), oauthProvider)
+                      .toString())
+              .request()
+              .asString();
+      return DtoFactory.newDto(OAuthToken.class).withToken(token);
+    } catch (IOException e) {
+      throw new ServerException(e.getMessage());
+    }
   }
-
-  //  @DELETE
-  //  @Path("token")
-  //  public void invalidate(@Required @QueryParam("oauth_provider") String oauthProvider)
-  //      throws BadRequestException, NotFoundException, ServerException, ForbiddenException {
-  //
-  //    OAuthAuthenticator oauth = getAuthenticator(oauthProvider);
-  //    final Subject subject = EnvironmentContext.getCurrent().getSubject();
-  //    try {
-  //      if (!oauth.invalidateToken(subject.getUserId())) {
-  //        throw new NotFoundException(
-  //            "OAuth token for user " + subject.getUserId() + " was not found");
-  //      }
-  //    } catch (IOException e) {
-  //      throw new ServerException(e.getMessage());
-  //    }
-  //  }
-
-  //  protected OAuthAuthenticator getAuthenticator(String oauthProviderName)
-  //      throws BadRequestException {
-  //    OAuthAuthenticator oauth = providers.getAuthenticator(oauthProviderName);
-  //    if (oauth == null) {
-  //      LOG.warn("Unsupported OAuth provider {} ", oauthProviderName);
-  //      throw new BadRequestException("Unsupported OAuth provider " + oauthProviderName);
-  //    }
-  //    return oauth;
-  //  }
 }
