@@ -31,7 +31,7 @@ public class MutableProjectConfig implements ProjectConfig {
   private String type;
   private List<String> mixins;
   private Map<String, List<String>> attributes;
-  private MutableSourceStorage sourceStorage;
+  private SourceStorage sourceStorage;
   private Map<String, String> options;
   private List<NewProjectConfig> projects;
   private List<CommandDto> commands;
@@ -43,7 +43,7 @@ public class MutableProjectConfig implements ProjectConfig {
     type = source.getType();
     mixins = newArrayList(source.getMixins());
     attributes = newHashMap(source.getAttributes());
-    sourceStorage = new MutableSourceStorage(source.getSource());
+    sourceStorage = new SourceStorageImpl(source.getSource());
   }
 
   public MutableProjectConfig() {}
@@ -111,16 +111,16 @@ public class MutableProjectConfig implements ProjectConfig {
   }
 
   @Override
-  public MutableSourceStorage getSource() {
+  public SourceStorage getSource() {
     if (sourceStorage == null) {
-      sourceStorage = new MutableSourceStorage();
+      sourceStorage = new SourceStorageImpl();
     }
 
     return sourceStorage;
   }
 
   public void setSource(SourceStorage sourceStorage) {
-    this.sourceStorage = new MutableSourceStorage(sourceStorage);
+    this.sourceStorage = new SourceStorageImpl(sourceStorage);
   }
 
   public Map<String, String> getOptions() {
@@ -164,50 +164,5 @@ public class MutableProjectConfig implements ProjectConfig {
    */
   public void setProjects(List<NewProjectConfig> projects) {
     this.projects = projects;
-  }
-
-  public class MutableSourceStorage implements SourceStorage {
-    private String type;
-    private String location;
-    private Map<String, String> parameters;
-
-    public MutableSourceStorage(SourceStorage source) {
-      type = source.getType();
-      location = source.getLocation();
-      parameters = source.getParameters();
-    }
-
-    public MutableSourceStorage() {}
-
-    @Override
-    public String getType() {
-      return type;
-    }
-
-    public void setType(String type) {
-      this.type = type;
-    }
-
-    @Override
-    public String getLocation() {
-      return location;
-    }
-
-    public void setLocation(String location) {
-      this.location = location;
-    }
-
-    @Override
-    public Map<String, String> getParameters() {
-      if (parameters == null) {
-        parameters = newHashMap();
-      }
-
-      return parameters;
-    }
-
-    public void setParameters(Map<String, String> parameters) {
-      this.parameters = parameters;
-    }
   }
 }

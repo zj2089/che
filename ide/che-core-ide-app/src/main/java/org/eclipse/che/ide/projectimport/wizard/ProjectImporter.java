@@ -25,6 +25,7 @@ import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.Map;
+import org.eclipse.che.api.auth.shared.dto.OAuthToken;
 import org.eclipse.che.api.core.model.project.SourceStorage;
 import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.FunctionException;
@@ -35,11 +36,13 @@ import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.callback.AsyncPromiseHelper.RequestCall;
 import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.api.app.AppContext;
+import org.eclipse.che.ide.api.auth.OAuthServiceClient;
 import org.eclipse.che.ide.api.importer.AbstractImporter;
 import org.eclipse.che.ide.api.oauth.OAuth2Authenticator;
 import org.eclipse.che.ide.api.oauth.OAuth2AuthenticatorRegistry;
 import org.eclipse.che.ide.api.oauth.OAuth2AuthenticatorUrlProvider;
 import org.eclipse.che.ide.api.project.MutableProjectConfig;
+import org.eclipse.che.ide.api.project.SourceStorageImpl;
 import org.eclipse.che.ide.api.project.wizard.ImportProjectNotificationSubscriberFactory;
 import org.eclipse.che.ide.api.project.wizard.ProjectNotificationSubscriber;
 import org.eclipse.che.ide.api.resources.Project;
@@ -47,6 +50,8 @@ import org.eclipse.che.ide.api.user.AskCredentialsDialog;
 import org.eclipse.che.ide.api.user.Credentials;
 import org.eclipse.che.ide.api.wizard.Wizard.CompleteCallback;
 import org.eclipse.che.ide.resource.Path;
+import org.eclipse.che.ide.rest.AsyncRequestCallback;
+import org.eclipse.che.ide.rest.UrlBuilder;
 import org.eclipse.che.ide.util.ExceptionUtils;
 import org.eclipse.che.security.oauth.OAuthStatus;
 
@@ -61,6 +66,7 @@ public class ProjectImporter extends AbstractImporter {
   private final ProjectResolver projectResolver;
   private final AskCredentialsDialog credentialsDialog;
   private final OAuth2AuthenticatorRegistry oAuth2AuthenticatorRegistry;
+  private OAuthServiceClient oAuthServiceClient;
 
   @Inject
   public ProjectImporter(
@@ -69,12 +75,14 @@ public class ProjectImporter extends AbstractImporter {
       AppContext appContext,
       ProjectResolver projectResolver,
       AskCredentialsDialog credentialsDialog,
-      OAuth2AuthenticatorRegistry oAuth2AuthenticatorRegistry) {
+      OAuth2AuthenticatorRegistry oAuth2AuthenticatorRegistry,
+      OAuthServiceClient oAuthServiceClient) {
     super(appContext, subscriberFactory);
     this.localizationConstant = localizationConstant;
     this.projectResolver = projectResolver;
     this.credentialsDialog = credentialsDialog;
     this.oAuth2AuthenticatorRegistry = oAuth2AuthenticatorRegistry;
+    this.oAuthServiceClient = oAuthServiceClient;
   }
 
   public void importProject(final CompleteCallback callback, MutableProjectConfig projectConfig) {
@@ -231,21 +239,45 @@ public class ProjectImporter extends AbstractImporter {
                   @Override
                   public void onSuccess(OAuthStatus result) {
                     if (!result.equals(OAuthStatus.NOT_PERFORMED)) {
-                      doImport(path, sourceStorage)
-                          .then(
-                              new Operation<Project>() {
-                                @Override
-                                public void apply(Project project) throws OperationException {
-                                  callback.onSuccess(project);
-                                }
-                              })
-                          .catchError(
-                              new Operation<PromiseError>() {
-                                @Override
-                                public void apply(PromiseError error) throws OperationException {
-                                  callback.onFailure(error.getCause());
-                                }
-                              });
+                      oAuthServiceClient.getToken(
+                          providerName,
+                          new AsyncRequestCallback<OAuthToken>() {
+                            @Override
+                            protected void onSuccess(OAuthToken result) {
+                              String token = result.getToken();
+                              String location = sourceStorage.getLocation();
+                              String newLocation =
+                                  new UrlBuilder(location)
+                                      .setParameter("username", "token")
+                                      .setParameter("password", token)
+                                      .buildString();
+                              final SourceStorageImpl copySourceStorage =
+                                  new SourceStorageImpl(sourceStorage);
+                              copySourceStorage.setLocation(newLocation);
+
+                              doImport(path, copySourceStorage)
+                                  .then(
+                                      new Operation<Project>() {
+                                        @Override
+                                        public void apply(Project project)
+                                            throws OperationException {
+                                          callback.onSuccess(project);
+                                        }
+                                      })
+                                  .catchError(
+                                      new Operation<PromiseError>() {
+                                        @Override
+                                        public void apply(PromiseError error)
+                                            throws OperationException {
+                                          callback.onFailure(error.getCause());
+                                        }
+                                      });
+                            }
+
+                            @Override
+                            protected void onFailure(Throwable exception) {}
+                          });
+
                     } else {
                       subscriber.onFailure("Authentication cancelled");
                       callback.onFailure(new IllegalStateException("Authentication cancelled"));
