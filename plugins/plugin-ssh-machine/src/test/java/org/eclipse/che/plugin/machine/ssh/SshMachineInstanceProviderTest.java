@@ -29,7 +29,7 @@ import org.eclipse.che.api.machine.server.model.impl.MachineConfigImpl;
 import org.eclipse.che.api.machine.server.model.impl.MachineImpl;
 import org.eclipse.che.api.machine.server.model.impl.MachineSourceImpl;
 import org.eclipse.che.api.machine.server.model.impl.ServerConfImpl;
-import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
+import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl;
 import org.eclipse.che.api.machine.server.util.RecipeDownloader;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;

@@ -16,8 +16,8 @@ import javax.sql.DataSource;
 import org.eclipse.che.api.permission.server.account.AccountPermissionsChecker;
 import org.eclipse.che.inject.DynaModule;
 import org.eclipse.che.multiuser.permission.account.PersonalAccountPermissionsChecker;
-import org.eclipse.che.mutiuser.api.permissions.user.UserProfileServicePermissionsFilter;
-import org.eclipse.che.mutiuser.api.permissions.user.UserServicePermissionsFilter;
+import org.eclipse.che.mutiuser.permissions.user.UserProfileServicePermissionsFilter;
+import org.eclipse.che.mutiuser.permissions.user.UserServicePermissionsFilter;
 
 @DynaModule
 public class MultiUserCheWsMasterModule extends AbstractModule {

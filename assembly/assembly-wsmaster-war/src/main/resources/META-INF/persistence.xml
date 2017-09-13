@@ -36,7 +36,7 @@
         <class>org.eclipse.che.api.machine.server.model.impl.CommandImpl</class>
         <class>org.eclipse.che.api.machine.server.model.impl.MachineSourceImpl</class>
         <class>org.eclipse.che.api.machine.server.model.impl.SnapshotImpl</class>
-        <class>org.eclipse.che.api.machine.server.recipe.RecipeImpl</class>
+        <class>org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl</class>
 
         <class>org.eclipse.che.api.factory.server.model.impl.FactoryImpl</class>
         <class>org.eclipse.che.api.factory.server.model.impl.OnAppClosedImpl</class>

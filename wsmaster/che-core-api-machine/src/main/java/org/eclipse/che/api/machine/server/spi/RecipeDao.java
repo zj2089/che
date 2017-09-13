@@ -14,7 +14,7 @@ import java.util.List;
 import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
+import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl;
 import org.eclipse.che.api.machine.shared.ManagedRecipe;
 
 /**

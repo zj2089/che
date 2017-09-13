@@ -17,7 +17,7 @@ import org.eclipse.che.api.core.model.machine.MachineConfig;
 import org.eclipse.che.api.core.model.machine.MachineSource;
 import org.eclipse.che.api.core.model.machine.Recipe;
 import org.eclipse.che.api.machine.server.exception.MachineException;
-import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
+import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl;
 
 /**
  * Handle how recipe is retrieved, either by downloading it with external location or by using the

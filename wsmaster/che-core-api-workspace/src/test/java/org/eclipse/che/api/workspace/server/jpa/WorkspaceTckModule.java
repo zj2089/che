@@ -15,7 +15,7 @@ import java.util.Collection;
 import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.api.machine.server.model.impl.CommandImpl;
 import org.eclipse.che.api.machine.server.model.impl.SnapshotImpl;
-import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
+import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl;
 import org.eclipse.che.api.machine.server.recipe.RecipePermissionsImpl;
 import org.eclipse.che.api.permission.server.AbstractPermissionsDomain;
 import org.eclipse.che.api.permission.server.spi.PermissionsDao;

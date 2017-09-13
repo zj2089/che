@@ -25,5 +25,6 @@
     <modules>
         <module>che-multiuser-permission-account</module>
         <module>che-multiuser-permission-user</module>
+        <module>che-multiuser-permission-machine</module>
     </modules>
 </project>
