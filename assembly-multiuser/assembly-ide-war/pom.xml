@@ -46,8 +46,8 @@
             <artifactId>che-machine-authentication-ide</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.che.plugin</groupId>
-            <artifactId>che-plugin-keycloak-ide</artifactId>
+            <groupId>org.eclipse.che.multiuser</groupId>
+            <artifactId>che-multiuser-keycloak-ide</artifactId>
         </dependency>
     </dependencies>
     <build>

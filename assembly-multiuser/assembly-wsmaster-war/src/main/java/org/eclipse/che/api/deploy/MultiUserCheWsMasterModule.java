@@ -15,6 +15,9 @@ import com.google.inject.multibindings.Multibinder;
 import javax.sql.DataSource;
 import org.eclipse.che.api.permission.server.account.AccountPermissionsChecker;
 import org.eclipse.che.inject.DynaModule;
+import org.eclipse.che.multiuser.permission.account.PersonalAccountPermissionsChecker;
+import org.eclipse.che.mutiuser.api.permissions.user.UserProfileServicePermissionsFilter;
+import org.eclipse.che.mutiuser.api.permissions.user.UserServicePermissionsFilter;
 
 @DynaModule
 public class MultiUserCheWsMasterModule extends AbstractModule {
@@ -26,12 +29,12 @@ public class MultiUserCheWsMasterModule extends AbstractModule {
     install(new org.eclipse.che.api.permission.server.jpa.SystemPermissionsJpaModule());
     install(new org.eclipse.che.api.permission.server.PermissionsModule());
     install(new org.eclipse.che.api.workspace.server.WorkspaceApiPermissionsModule());
-    bind(org.eclipse.che.api.user.server.permissions.UserProfileServicePermissionsFilter.class);
-    bind(org.eclipse.che.api.user.server.permissions.UserServicePermissionsFilter.class);
+    bind(UserProfileServicePermissionsFilter.class);
+    bind(UserServicePermissionsFilter.class);
     bind(org.eclipse.che.api.factory.server.permissions.FactoryPermissionsFilter.class);
     bind(org.eclipse.che.plugin.activity.ActivityPermissionsFilter.class);
     Multibinder.newSetBinder(binder(), AccountPermissionsChecker.class)
         .addBinding()
-        .to(org.eclipse.che.account.permission.PersonalAccountPermissionsChecker.class);
+        .to(PersonalAccountPermissionsChecker.class);
   }
 }

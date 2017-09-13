@@ -54,8 +54,8 @@
 
         <class>org.eclipse.che.api.ssh.server.model.impl.SshPairImpl</class>
 
-        <class>org.eclipse.che.api.permission.server.model.impl.SystemPermissionsImpl</class>
-        <class>org.eclipse.che.api.permission.server.model.impl.AbstractPermissions</class>
+        <class>SystemPermissionsImpl</class>
+        <class>AbstractPermissions</class>
         <class>org.eclipse.che.api.workspace.server.model.impl.WorkerImpl</class>
         <class>org.eclipse.che.api.workspace.server.stack.StackPermissionsImpl</class>
         <class>org.eclipse.che.api.machine.server.recipe.RecipePermissionsImpl</class>
