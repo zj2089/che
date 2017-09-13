@@ -11,9 +11,9 @@
 package org.eclipse.che.multiuser.permissions.machine.filters;
 
 import static com.jayway.restassured.RestAssured.given;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.DELETE;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.READ;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.UPDATE;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.DELETE;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.READ;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.UPDATE;
 import static org.everrest.assured.JettyHttpServer.ADMIN_USER_NAME;
 import static org.everrest.assured.JettyHttpServer.ADMIN_USER_PASSWORD;
 import static org.everrest.assured.JettyHttpServer.SECURE_PATH;
@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.rest.ApiExceptionMapper;
 import org.eclipse.che.api.core.rest.shared.dto.ServiceError;
-import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeService;
+import org.eclipse.che.api.machine.server.recipe.RecipeService;
 import org.eclipse.che.api.machine.shared.dto.recipe.RecipeUpdate;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
@@ -72,7 +72,8 @@ public class RecipePermissionsFilterTest {
 
   @Mock private static Subject subject;
 
-  @Mock RecipeService service;
+  @Mock
+  RecipeService service;
 
   @Test
   public void shouldNotCheckPermissionsOnStackCreating() throws Exception {

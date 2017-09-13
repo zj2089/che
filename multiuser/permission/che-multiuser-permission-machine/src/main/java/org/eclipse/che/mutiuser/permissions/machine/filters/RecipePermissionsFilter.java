@@ -10,16 +10,15 @@
  */
 package org.eclipse.che.mutiuser.permissions.machine.filters;
 
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.DELETE;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.DOMAIN_ID;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.READ;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.SEARCH;
-import static org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeDomain.UPDATE;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.DELETE;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.DOMAIN_ID;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.READ;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.SEARCH;
+import static org.eclipse.che.multiuser.permissions.machine.recipe.RecipeDomain.UPDATE;
 
 import javax.ws.rs.Path;
 import org.eclipse.che.api.core.ForbiddenException;
 import org.eclipse.che.api.core.ServerException;
-import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeService;
 import org.eclipse.che.api.machine.shared.dto.recipe.RecipeUpdate;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
