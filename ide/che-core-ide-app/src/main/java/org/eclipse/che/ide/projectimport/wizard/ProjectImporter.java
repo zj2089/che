@@ -275,7 +275,9 @@ public class ProjectImporter extends AbstractImporter {
                             }
 
                             @Override
-                            protected void onFailure(Throwable exception) {}
+                            protected void onFailure(Throwable exception) {
+                              callback.onFailure(new Exception(exception.getMessage()));
+                            }
                           });
 
                     } else {
