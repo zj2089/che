@@ -43,8 +43,7 @@ public class MachineAuthModule extends AbstractModule {
     bind(MachineTokenRegistry.class);
     bind(MachineSessionInvalidator.class);
     bind(RequestTokenExtractor.class).to(HeaderRequestTokenExtractor.class);
-    bind(WorkspaceServiceLinksInjector.class)
-        .to(WorkspaceServiceAuthLinksInjector.class);
+    bind(WorkspaceServiceLinksInjector.class).to(WorkspaceServiceAuthLinksInjector.class);
     bind(org.eclipse.che.api.environment.server.MachineInstanceProvider.class)
         .to(org.eclipse.che.plugin.docker.machine.AuthMachineProviderImpl.class);
   }

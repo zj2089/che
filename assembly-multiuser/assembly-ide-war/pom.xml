@@ -43,11 +43,11 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.multiuser</groupId>
-            <artifactId>che-multiuser-machine-authentication-ide</artifactId>
+            <artifactId>che-multiuser-keycloak-ide</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.multiuser</groupId>
-            <artifactId>che-multiuser-keycloak-ide</artifactId>
+            <artifactId>che-multiuser-machine-authentication-ide</artifactId>
         </dependency>
     </dependencies>
     <build>

@@ -8,6 +8,7 @@
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
+
 import com.google.inject.TypeLiteral;
 import com.google.inject.persist.Transactional;
 import java.sql.Connection;
@@ -24,11 +25,11 @@ import org.eclipse.che.account.spi.AccountDao;
 import org.eclipse.che.account.spi.AccountImpl;
 import org.eclipse.che.account.spi.jpa.JpaAccountDao;
 import org.eclipse.che.api.core.model.workspace.Workspace;
-import org.eclipse.che.mutiuser.permissions.machine.jpa.JpaRecipeDao;
-import org.eclipse.che.mutiuser.permissions.machine.jpa.JpaSnapshotDao;
+import org.eclipse.che.api.machine.server.jpa.JpaRecipeDao;
+import org.eclipse.che.api.machine.server.jpa.JpaSnapshotDao;
 import org.eclipse.che.api.machine.server.model.impl.CommandImpl;
 import org.eclipse.che.api.machine.server.model.impl.SnapshotImpl;
-import org.eclipse.che.mutiuser.permissions.machine.recipe.RecipeImpl;
+import org.eclipse.che.api.machine.server.recipe.RecipeImpl;
 import org.eclipse.che.api.machine.server.spi.RecipeDao;
 import org.eclipse.che.api.machine.server.spi.SnapshotDao;
 import org.eclipse.che.api.ssh.server.jpa.JpaSshDao;

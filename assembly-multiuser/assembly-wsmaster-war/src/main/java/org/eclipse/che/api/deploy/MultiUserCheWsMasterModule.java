@@ -13,11 +13,11 @@ package org.eclipse.che.api.deploy;
 import com.google.inject.AbstractModule;
 import com.google.inject.multibindings.Multibinder;
 import javax.sql.DataSource;
-import org.eclipse.che.api.permission.server.account.AccountPermissionsChecker;
 import org.eclipse.che.inject.DynaModule;
+import org.eclipse.che.multiuser.api.permission.server.account.AccountPermissionsChecker;
 import org.eclipse.che.multiuser.permission.account.PersonalAccountPermissionsChecker;
-import org.eclipse.che.mutiuser.permissions.user.UserProfileServicePermissionsFilter;
-import org.eclipse.che.mutiuser.permissions.user.UserServicePermissionsFilter;
+import org.eclipse.che.multiuser.permission.user.UserProfileServicePermissionsFilter;
+import org.eclipse.che.multiuser.permission.user.UserServicePermissionsFilter;
 
 @DynaModule
 public class MultiUserCheWsMasterModule extends AbstractModule {
@@ -25,14 +25,21 @@ public class MultiUserCheWsMasterModule extends AbstractModule {
   @Override
   protected void configure() {
     bind(DataSource.class).toProvider(org.eclipse.che.core.db.JndiDataSourceProvider.class);
-    bind(org.eclipse.che.api.system.server.SystemServicePermissionsFilter.class);
-    install(new org.eclipse.che.api.permission.server.jpa.SystemPermissionsJpaModule());
-    install(new org.eclipse.che.api.permission.server.PermissionsModule());
-    install(new org.eclipse.che.api.workspace.server.WorkspaceApiPermissionsModule());
-    bind(UserProfileServicePermissionsFilter.class);
-    bind(UserServicePermissionsFilter.class);
-    bind(org.eclipse.che.api.factory.server.permissions.FactoryPermissionsFilter.class);
+    install(new org.eclipse.che.multiuser.api.permission.server.jpa.SystemPermissionsJpaModule());
+    install(new org.eclipse.che.multiuser.api.permission.server.PermissionsModule());
+    install(
+        new org.eclipse.che.multiuser.permission.workspace.server.WorkspaceApiPermissionsModule());
+    install(
+        new org.eclipse.che.multiuser.permission.workspace.server.jpa
+            .MultiuserWorkspaceJpaModule());
+
+    //Permission filters
+    bind(org.eclipse.che.multiuser.permission.system.SystemServicePermissionsFilter.class);
+    bind(org.eclipse.che.multiuser.permission.user.UserProfileServicePermissionsFilter.class);
+    bind(org.eclipse.che.multiuser.permission.user.UserServicePermissionsFilter.class);
+    bind(org.eclipse.che.multiuser.permission.factory.FactoryPermissionsFilter.class);
     bind(org.eclipse.che.plugin.activity.ActivityPermissionsFilter.class);
+
     Multibinder.newSetBinder(binder(), AccountPermissionsChecker.class)
         .addBinding()
         .to(PersonalAccountPermissionsChecker.class);
