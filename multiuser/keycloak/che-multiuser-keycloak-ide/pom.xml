@@ -21,7 +21,7 @@
     </parent>
     <artifactId>che-multiuser-keycloak-ide</artifactId>
     <packaging>jar</packaging>
-    <name>Che Keycloak IDE</name>
+    <name>Che Multiuser :: Keycloak IDE</name>
     <dependencies>
         <dependency>
             <groupId>com.google.gwt.inject</groupId>
@@ -40,12 +40,12 @@
             <artifactId>che-core-ide-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.che.core</groupId>
-            <artifactId>che-machine-authentication-ide</artifactId>
+            <groupId>org.eclipse.che.multiuser</groupId>
+            <artifactId>che-multiuser-keycloak-shared</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.che.multiuser</groupId>
-            <artifactId>che-multiuser-keycloak-shared</artifactId>
+            <artifactId>che-multiuser-machine-authentication-ide</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>

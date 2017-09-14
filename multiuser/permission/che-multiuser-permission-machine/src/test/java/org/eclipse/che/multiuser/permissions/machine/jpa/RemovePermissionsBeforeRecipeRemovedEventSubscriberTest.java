@@ -67,7 +67,7 @@ public class RemovePermissionsBeforeRecipeRemovedEventSubscriberTest {
           new RecipePermissionsImpl(users[i].getId(), recipe.getId(), asList("read", "update"));
     }
 
-    Injector injector = Guice.createInjector(new MachineJpaModule(), new JpaTestModule());
+    Injector injector = Guice.createInjector(new MultiuserMachineJpaModule(), new JpaTestModule());
 
     manager = injector.getInstance(EntityManager.class);
     recipeDao = injector.getInstance(JpaRecipeDao.class);

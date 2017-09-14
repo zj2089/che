@@ -39,7 +39,6 @@ import org.eclipse.che.api.machine.shared.dto.recipe.RecipeUpdate;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.subject.Subject;
 import org.eclipse.che.dto.server.DtoFactory;
-import org.eclipse.che.mutiuser.permissions.machine.filters.RecipePermissionsFilter;
 import org.everrest.assured.EverrestJetty;
 import org.everrest.core.Filter;
 import org.everrest.core.GenericContainerRequest;
@@ -72,8 +71,7 @@ public class RecipePermissionsFilterTest {
 
   @Mock private static Subject subject;
 
-  @Mock
-  RecipeService service;
+  @Mock RecipeService service;
 
   @Test
   public void shouldNotCheckPermissionsOnStackCreating() throws Exception {

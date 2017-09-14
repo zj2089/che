@@ -19,7 +19,7 @@
         <version>5.18.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-multiuser-permission-account</artifactId>
-    <name>Che Multiuser :: API :: Account Permission</name>
+    <name>Che Multiuser :: Account Permission</name>
     <dependencies>
         <dependency>
             <groupId>javax.inject</groupId>

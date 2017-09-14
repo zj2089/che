@@ -27,5 +27,6 @@
         <module>api</module>
         <module>permission</module>
         <module>keycloak</module>
+        <module>machine-auth</module>
     </modules>
 </project>

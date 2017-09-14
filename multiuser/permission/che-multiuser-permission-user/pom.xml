@@ -19,7 +19,7 @@
         <version>5.18.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-multiuser-permission-user</artifactId>
-    <name>Che Multiuser :: API :: User Permissions</name>
+    <name>Che Multiuser :: User Permissions</name>
     <properties>
         <findbugs.failonerror>false</findbugs.failonerror>
     </properties>

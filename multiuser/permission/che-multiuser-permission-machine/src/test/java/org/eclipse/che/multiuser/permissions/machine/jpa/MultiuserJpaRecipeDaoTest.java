@@ -72,9 +72,9 @@ public class MultiuserJpaRecipeDaoTest {
               "recipe_ubuntu", "DEBIAN_JDK8", "test", "test", null, asList("ubuntu", "tag1"), null)
         };
 
-    Injector injector = Guice.createInjector(new JpaTestModule(), new MachineJpaModule());
+    Injector injector = Guice.createInjector(new JpaTestModule(), new MultiuserMachineJpaModule());
     manager = injector.getInstance(EntityManager.class);
-    dao = injector.getInstance(JpaRecipeDao.class);
+    dao = injector.getInstance(MultiuserJpaRecipeDao.class);
   }
 
   @BeforeMethod
@@ -140,7 +140,6 @@ public class MultiuserJpaRecipeDaoTest {
   @Test
   public void shouldFindRecipeByUserIdAndPublicPermissions() throws Exception {
     final Set<RecipeImpl> results = new HashSet<>(dao.search(users[0].getId(), null, null, 0, 30));
-    System.out.println("~~~~~~~~~~~~~~~~~~~~~~~~~~" + dao);
     assertEquals(results.size(), 5);
     assertTrue(results.contains(recipes[0]));
     assertTrue(results.contains(recipes[1]));

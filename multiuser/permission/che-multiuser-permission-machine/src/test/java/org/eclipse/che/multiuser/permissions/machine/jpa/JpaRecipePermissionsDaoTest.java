@@ -59,7 +59,7 @@ public class JpaRecipePermissionsDaoTest {
           new RecipeImpl("recipe2", "rc2", null, null, null, null, null)
         };
 
-    Injector injector = Guice.createInjector(new JpaTestModule(), new MachineJpaModule());
+    Injector injector = Guice.createInjector(new JpaTestModule(), new MultiuserMachineJpaModule());
     manager = injector.getInstance(EntityManager.class);
     dao = injector.getInstance(JpaRecipePermissionsDao.class);
   }

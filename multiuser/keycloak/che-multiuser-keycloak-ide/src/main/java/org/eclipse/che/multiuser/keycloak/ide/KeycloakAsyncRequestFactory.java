@@ -33,9 +33,9 @@ import org.eclipse.che.ide.json.JsonHelper;
 import org.eclipse.che.ide.rest.AsyncRequest;
 import org.eclipse.che.ide.rest.HTTPHeader;
 import org.eclipse.che.ide.util.loging.Log;
-import org.eclipse.che.machine.authentication.ide.MachineAsyncRequestFactory;
-import org.eclipse.che.machine.authentication.ide.MachineTokenServiceClient;
 import org.eclipse.che.multiuser.keycloak.shared.KeycloakConstants;
+import org.eclipse.che.multiuser.machine.authentication.ide.MachineAsyncRequestFactory;
+import org.eclipse.che.multiuser.machine.authentication.ide.MachineTokenServiceClient;
 
 /** KeycloakAuthAsyncRequestFactory */
 @Singleton

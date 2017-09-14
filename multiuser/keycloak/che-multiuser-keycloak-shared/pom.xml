@@ -20,7 +20,7 @@
     </parent>
     <artifactId>che-multiuser-keycloak-shared</artifactId>
     <packaging>jar</packaging>
-    <name>Che Keycloak Shared module</name>
+    <name>Che Multiuser :: Keycloak Shared module</name>
     <dependencies>
         <dependency>
             <groupId>javax.servlet</groupId>
