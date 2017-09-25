@@ -28,6 +28,10 @@ import org.eclipse.che.ide.api.parts.EditorMultiPartStackState;
 import org.eclipse.che.ide.api.parts.EditorPartStack;
 import org.eclipse.che.ide.api.parts.EditorTab;
 import org.eclipse.che.ide.api.parts.PartPresenter;
+import org.eclipse.che.ide.api.workspace.event.WorkspaceRunningEvent;
+import org.eclipse.che.ide.api.workspace.event.WorkspaceStartingEvent;
+import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppedEvent;
+import org.eclipse.che.ide.api.workspace.event.WorkspaceStoppingEvent;
 
 /**
  * Presenter to control the displaying of multi editors.
@@ -55,6 +59,11 @@ public class EditorMultiPartStackPresenter
     this.partStackPresenters = new LinkedList<>();
 
     eventBus.addHandler(ActivePartChangedEvent.TYPE, this);
+
+    eventBus.addHandler(WorkspaceStoppingEvent.TYPE, event -> view.setLoadingMode(true));
+    eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> view.setLoadingMode(true));
+    eventBus.addHandler(WorkspaceStartingEvent.TYPE, event -> view.setLoadingMode(true));
+    eventBus.addHandler(WorkspaceRunningEvent.TYPE, event -> view.setLoadingMode(false));
   }
 
   @Override
