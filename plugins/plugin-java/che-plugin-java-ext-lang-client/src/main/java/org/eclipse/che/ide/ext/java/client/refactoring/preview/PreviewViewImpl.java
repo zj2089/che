@@ -13,18 +13,14 @@ package org.eclipse.che.ide.ext.java.client.refactoring.preview;
 import static com.google.gwt.dom.client.Style.Float.LEFT;
 import static com.google.gwt.dom.client.Style.Unit.PX;
 import static org.eclipse.che.ide.api.theme.Style.getEditorSelectionColor;
+import static org.eclipse.che.ide.orion.compare.CompareInitializer.GIT_COMPARE_MODULE;
 
 import com.google.gwt.core.client.GWT;
-import com.google.gwt.dom.client.Document;
+import com.google.gwt.core.client.JavaScriptObject;
 import com.google.gwt.dom.client.Element;
-import com.google.gwt.event.dom.client.ClickEvent;
-import com.google.gwt.event.dom.client.ClickHandler;
-import com.google.gwt.event.logical.shared.SelectionEvent;
-import com.google.gwt.event.logical.shared.SelectionHandler;
-import com.google.gwt.event.logical.shared.ValueChangeEvent;
-import com.google.gwt.event.logical.shared.ValueChangeHandler;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
+import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.gwt.user.client.ui.Button;
 import com.google.gwt.user.client.ui.CheckBox;
 import com.google.gwt.user.client.ui.FlowPanel;
@@ -34,7 +30,6 @@ import com.google.gwt.user.client.ui.Tree;
 import com.google.gwt.user.client.ui.TreeItem;
 import com.google.gwt.user.client.ui.VerticalPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.view.client.SelectionChangeEvent;
 import com.google.gwt.view.client.SelectionModel;
 import com.google.gwt.view.client.SingleSelectionModel;
 import com.google.inject.Inject;
@@ -45,7 +40,6 @@ import java.util.Map;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.api.theme.Style;
-import org.eclipse.che.ide.api.theme.ThemeAgent;
 import org.eclipse.che.ide.ext.java.client.JavaLocalizationConstant;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.ChangePreview;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringPreview;
@@ -53,10 +47,11 @@ import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatus;
 import org.eclipse.che.ide.ext.java.shared.dto.refactoring.RefactoringStatusEntry;
 import org.eclipse.che.ide.orion.compare.CompareConfig;
 import org.eclipse.che.ide.orion.compare.CompareFactory;
-import org.eclipse.che.ide.orion.compare.CompareWidget;
+import org.eclipse.che.ide.orion.compare.CompareInitializer;
 import org.eclipse.che.ide.orion.compare.FileOptions;
-import org.eclipse.che.ide.ui.loaders.request.LoaderFactory;
+import org.eclipse.che.ide.orion.compare.jso.GitCompareOverlay;
 import org.eclipse.che.ide.ui.window.Window;
+import org.eclipse.che.requirejs.ModuleHolder;
 
 /**
  * @author Dmitry Shnurenko
@@ -82,11 +77,11 @@ final class PreviewViewImpl extends Window implements PreviewView {
   private ActionDelegate delegate;
   private FileOptions newFile;
   private FileOptions oldFile;
-  private CompareWidget compare;
-  private ThemeAgent themeAgent;
+  private GitCompareOverlay compare;
 
-  private final LoaderFactory loaderFactory;
   private final CompareFactory compareFactory;
+  private final CompareInitializer compareInitializer;
+  private final ModuleHolder moduleHolder;
 
   private Map<TreeItem, RefactoringPreview> containerChanges = new HashMap<>();
   private Element selectedElement;
@@ -94,13 +89,13 @@ final class PreviewViewImpl extends Window implements PreviewView {
   @Inject
   public PreviewViewImpl(
       JavaLocalizationConstant locale,
-      LoaderFactory loaderFactory,
       CompareFactory compareFactory,
-      ThemeAgent themeAgent) {
+      CompareInitializer compareInitializer,
+      ModuleHolder moduleHolder) {
     this.locale = locale;
-    this.loaderFactory = loaderFactory;
     this.compareFactory = compareFactory;
-    this.themeAgent = themeAgent;
+    this.compareInitializer = compareInitializer;
+    this.moduleHolder = moduleHolder;
 
     setTitle(locale.moveDialogTitle());
 
@@ -110,41 +105,28 @@ final class PreviewViewImpl extends Window implements PreviewView {
         createButton(
             locale.moveDialogButtonBack(),
             "preview-back-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onBackButtonClicked();
-              }
-            });
+            event -> delegate.onBackButtonClicked());
 
     Button cancelButton =
         createButton(
             locale.moveDialogButtonCancel(),
             "preview-cancel-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                hide();
-                delegate.onCancelButtonClicked();
-              }
+            event -> {
+              hide();
+              delegate.onCancelButtonClicked();
             });
 
     Button acceptButton =
         createButton(
             locale.moveDialogButtonOk(),
             "preview-ok-button",
-            new ClickHandler() {
-              @Override
-              public void onClick(ClickEvent event) {
-                delegate.onAcceptButtonClicked();
-              }
-            });
+            event -> delegate.onAcceptButtonClicked());
 
     addButtonToFooter(acceptButton);
     addButtonToFooter(cancelButton);
     addButtonToFooter(backButton);
 
-    diff.getElement().setId(Document.get().createUniqueId());
+    diff.getElement().setId("compareParentDiv");
     showDiff(null);
   }
 
@@ -181,13 +163,10 @@ final class PreviewViewImpl extends Window implements PreviewView {
 
     final SelectionModel<RefactoringPreview> selectionModel = new SingleSelectionModel<>();
     selectionModel.addSelectionChangeHandler(
-        new SelectionChangeEvent.Handler() {
-          @Override
-          public void onSelectionChange(SelectionChangeEvent event) {
-            RefactoringPreview selectedNode =
-                (RefactoringPreview) ((SingleSelectionModel) selectionModel).getSelectedObject();
-            delegate.onSelectionChanged(selectedNode);
-          }
+        event -> {
+          RefactoringPreview selectedNode =
+              (RefactoringPreview) ((SingleSelectionModel) selectionModel).getSelectedObject();
+          delegate.onSelectionChanged(selectedNode);
         });
 
     Tree tree = new Tree();
@@ -202,16 +181,13 @@ final class PreviewViewImpl extends Window implements PreviewView {
     }
 
     tree.addSelectionHandler(
-        new SelectionHandler<TreeItem>() {
-          @Override
-          public void onSelection(SelectionEvent<TreeItem> event) {
-            if (selectedElement != null) {
-              selectedElement.getStyle().setProperty("background", "transparent");
-            }
-
-            selectedElement = event.getSelectedItem().getWidget().getElement();
-            selectedElement.getStyle().setProperty("background", getEditorSelectionColor());
+        event -> {
+          if (selectedElement != null) {
+            selectedElement.getStyle().setProperty("background", "transparent");
           }
+
+          selectedElement = event.getSelectedItem().getWidget().getElement();
+          selectedElement.getStyle().setProperty("background", getEditorSelectionColor());
         });
 
     treePanel.add(tree);
@@ -227,12 +203,9 @@ final class PreviewViewImpl extends Window implements PreviewView {
     itemCheckBox.getElement().getStyle().setMarginTop(3, PX);
     Label name = new Label(changeName);
     name.addClickHandler(
-        new ClickHandler() {
-          @Override
-          public void onClick(ClickEvent event) {
-            delegate.onSelectionChanged(containerChanges.get(root));
-            root.setSelected(true);
-          }
+        event -> {
+          delegate.onSelectionChanged(containerChanges.get(root));
+          root.setSelected(true);
         });
     name.getElement().getStyle().setFloat(LEFT);
     element.add(itemCheckBox);
@@ -243,17 +216,14 @@ final class PreviewViewImpl extends Window implements PreviewView {
     element.getElement().getParentElement().getStyle().setMargin(1, PX);
 
     itemCheckBox.addValueChangeHandler(
-        new ValueChangeHandler<Boolean>() {
-          @Override
-          public void onValueChange(ValueChangeEvent<Boolean> event) {
-            checkChildrenState(root, event.getValue());
-            checkParentState(root, event.getValue());
+        event -> {
+          checkChildrenState(root, event.getValue());
+          checkParentState(root, event.getValue());
 
-            RefactoringPreview change = containerChanges.get(root);
-            change.setEnabled(event.getValue());
+          RefactoringPreview change = containerChanges.get(root);
+          change.setEnabled(event.getValue());
 
-            delegate.onEnabledStateChanged(change);
-          }
+          delegate.onEnabledStateChanged(change);
         });
 
     if (children.isEmpty()) {
@@ -338,9 +308,8 @@ final class PreviewViewImpl extends Window implements PreviewView {
         prepareDiffEditor(preview);
         return;
       }
-      refreshComperingFiles(preview);
 
-      compare.reload();
+      refreshComperingFiles(preview);
     }
   }
 
@@ -349,6 +318,10 @@ final class PreviewViewImpl extends Window implements PreviewView {
     newFile.setName(preview.getFileName());
     oldFile.setContent(preview.getOldContent());
     oldFile.setName(preview.getFileName());
+
+    if (compare != null) {
+      compare.update(newFile, oldFile);
+    }
   }
 
   private void prepareDiffEditor(@NotNull ChangePreview preview) {
@@ -366,8 +339,18 @@ final class PreviewViewImpl extends Window implements PreviewView {
     compareConfig.setShowTitle(true);
     compareConfig.setShowLineStatus(true);
 
-    compare = new CompareWidget(compareConfig, themeAgent.getCurrentThemeId(), loaderFactory);
-    diff.add(compare);
+    compareInitializer.injectCompareWidget(
+        new AsyncCallback<Void>() {
+          @Override
+          public void onSuccess(Void result) {
+            JavaScriptObject gitCompare = moduleHolder.getModule(GIT_COMPARE_MODULE);
+            compare =
+                GitCompareOverlay.create(gitCompare, compareConfig, diff.getElement().getId());
+          }
+
+          @Override
+          public void onFailure(Throwable caught) {}
+        });
   }
 
   private void showMessage(RefactoringStatus status) {

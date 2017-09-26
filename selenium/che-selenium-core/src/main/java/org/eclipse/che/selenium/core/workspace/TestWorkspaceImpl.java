@@ -39,26 +39,23 @@ public class TestWorkspaceImpl implements TestWorkspace {
       TestUser owner,
       int memoryInGB,
       WorkspaceConfigDto template,
-      TestWorkspaceServiceClient workspaceServiceClient) {
+      TestWorkspaceServiceClient testWorkspaceServiceClient) {
+    if (template == null) {
+      throw new IllegalStateException("Workspace template cannot be null");
+    }
     this.name = name;
     this.owner = owner;
     this.id = new AtomicReference<>();
-    this.workspaceServiceClient = workspaceServiceClient;
+    this.workspaceServiceClient = testWorkspaceServiceClient;
 
     this.future =
         CompletableFuture.runAsync(
             () -> {
-              if (template == null) {
-                throw new IllegalStateException("Workspace template cannot be null");
-              }
-
               try {
                 final Workspace ws =
                     workspaceServiceClient.createWorkspace(name, memoryInGB, GB, template);
                 workspaceServiceClient.start(id.updateAndGet((s) -> ws.getId()), name, owner);
-
-                LOG.info("Workspace name='{}' id='{}' has been created.", name, ws.getId());
-
+                LOG.info("Workspace name='{}' id='{}' started.", name, ws.getId());
               } catch (Exception e) {
                 String errorMessage = format("Workspace name='%s' start failed.", name);
                 LOG.error(errorMessage, e);
@@ -103,7 +100,6 @@ public class TestWorkspaceImpl implements TestWorkspace {
         aVoid -> {
           try {
             workspaceServiceClient.delete(name, owner.getName());
-            LOG.info("Workspace name='{}', id='{}' removed", name, getId());
           } catch (Exception e) {
             throw new RuntimeException(format("Failed to remove workspace '%s'", this), e);
           }

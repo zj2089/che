@@ -119,12 +119,13 @@ declare namespace che {
     attributes?: {
       updated?: number;
       created?: number;
+      stackId?: string;
       [propName: string]: string | number;
     };
     config: IWorkspaceConfig;
     runtime?: IWorkspaceRuntime;
     isLocked?: boolean;
-    usedResources: string;
+    usedResources?: string;
   }
 
   export interface IWorkspaceConfig {
@@ -206,7 +207,7 @@ declare namespace che {
     name: string;
     displayName?: string;
     description: string;
-    source?: IProjectSource;
+    source: IProjectSource;
     path?: string;
     commands?: Array<IWorkspaceCommand>;
     mixins: Array<any>;
@@ -290,6 +291,7 @@ declare namespace che {
     v: string;
     workspace: IWorkspaceConfig;
     creator: any;
+    links?: any;
     ide?: any;
     button?: any;
     policies?: any;
