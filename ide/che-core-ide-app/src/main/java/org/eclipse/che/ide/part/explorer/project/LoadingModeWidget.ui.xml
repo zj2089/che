@@ -37,7 +37,7 @@
             border-top: 1px solid transparent;
             overflow: hidden;
             animation-name: fadeIn;
-            animation-duration: 0.5s;
+            animation-duration: 0.2s;
             animation-fill-mode: both;
         }
 
@@ -84,13 +84,13 @@
     </ui:style>
 
     <g:HTMLPanel styleName="{style.panel}">
-        <div class="{style.row} {style.first}" style="animation-delay: 0.1s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
-        <div class="{style.row}" style="animation-delay: 0.2s;" ><div class="{style.icon}" /><div class="{style.text}" /></div>
-            <div class="{style.row} {style.shifted}" style="animation-delay: 0.3s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
-            <div class="{style.row} {style.shifted}" style="animation-delay: 0.4s;" ><div class="{style.icon}" /><div class="{style.text}" /></div>
-        <div class="{style.row}" style="animation-delay: 0.5s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
-        <div class="{style.row}" style="animation-delay: 0.6s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
-        <div class="{style.row}" style="animation-delay: 0.7s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
+        <div class="{style.row} {style.first}" style="animation-delay: 0.00s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
+        <div class="{style.row}" style="animation-delay: 0.05s;" ><div class="{style.icon}" /><div class="{style.text}" /></div>
+            <div class="{style.row} {style.shifted}" style="animation-delay: 0.10s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
+            <div class="{style.row} {style.shifted}" style="animation-delay: 0.15s;" ><div class="{style.icon}" /><div class="{style.text}" /></div>
+        <div class="{style.row}" style="animation-delay: 0.20s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
+        <div class="{style.row}" style="animation-delay: 0.25s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
+        <div class="{style.row}" style="animation-delay: 0.30s;"><div class="{style.icon}" /><div class="{style.text}" /></div>
     </g:HTMLPanel>
 
 </ui:UiBinder>

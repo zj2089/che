@@ -18,7 +18,9 @@ import com.google.web.bindery.event.shared.EventBus;
 import java.util.LinkedList;
 import java.util.List;
 import javax.validation.constraints.NotNull;
+import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.constraints.Constraints;
 import org.eclipse.che.ide.api.editor.EditorPartPresenter;
 import org.eclipse.che.ide.api.parts.ActivePartChangedEvent;
@@ -53,7 +55,8 @@ public class EditorMultiPartStackPresenter
   public EditorMultiPartStackPresenter(
       EventBus eventBus,
       EditorMultiPartStackView view,
-      Provider<EditorPartStack> editorPartStackFactory) {
+      Provider<EditorPartStack> editorPartStackFactory,
+      AppContext appContext) {
     this.view = view;
     this.editorPartStackFactory = editorPartStackFactory;
     this.partStackPresenters = new LinkedList<>();
@@ -64,6 +67,10 @@ public class EditorMultiPartStackPresenter
     eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> view.setLoadingMode(true));
     eventBus.addHandler(WorkspaceStartingEvent.TYPE, event -> view.setLoadingMode(true));
     eventBus.addHandler(WorkspaceRunningEvent.TYPE, event -> view.setLoadingMode(false));
+
+    if (WorkspaceStatus.RUNNING != appContext.getWorkspace().getStatus()) {
+      view.setLoadingMode(true);
+    }
   }
 
   @Override

@@ -13,7 +13,6 @@ package org.eclipse.che.ide.part.editor.multipart;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.user.client.ui.Composite;
 import com.google.gwt.user.client.ui.Widget;
-
 import javax.inject.Inject;
 
 /** Represents loading mode widget for editor */

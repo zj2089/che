@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
+import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.api.project.shared.dto.event.ProjectTreeTrackingOperationDto;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.CoreLocalizationConstant;
@@ -123,6 +124,10 @@ public class ProjectExplorerPresenter extends BasePresenter
     eventBus.addHandler(WorkspaceStoppedEvent.TYPE, event -> view.setLoadingMode(true));
     eventBus.addHandler(WorkspaceStartingEvent.TYPE, event -> view.setLoadingMode(true));
     eventBus.addHandler(WorkspaceStoppingEvent.TYPE, event -> view.setLoadingMode(true));
+
+    if (WorkspaceStatus.RUNNING != appContext.getWorkspace().getStatus()) {
+      view.setLoadingMode(true);
+    }
 
     view.getTree()
         .getSelectionModel()
