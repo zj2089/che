@@ -81,7 +81,7 @@ export class ListTeamsController {
   /**
    * todo
    */
-  private resourceLimits: che.resource.ICheResourceLimits;
+  private resourceLimits: che.resources.ICheResourceLimits;
 
   /**
    * Default constructor that is using resource

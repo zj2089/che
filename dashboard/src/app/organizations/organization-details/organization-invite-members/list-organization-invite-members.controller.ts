@@ -64,7 +64,7 @@ export class ListOrganizationInviteMembersController {
   /**
    *
    */
-  private organizationRoles: che.resource.ICheOrganizationRoles;
+  private organizationRoles: che.resources.ICheOrganizationRoles;
 
   /**
    * Default constructor that is using resource

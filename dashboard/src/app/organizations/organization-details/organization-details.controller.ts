@@ -108,9 +108,9 @@ export class OrganizationDetailsController {
 
   private organizationsPermissionService: OrganizationsPermissionService;
 
-  private resourceLimits: che.resource.ICheResourceLimits;
+  private resourceLimits: che.resources.ICheResourceLimits;
 
-  private organizationActions: che.resource.ICheOrganizationActions;
+  private organizationActions: che.resources.ICheOrganizationActions;
 
   /**
    * Default constructor that is using resource injection

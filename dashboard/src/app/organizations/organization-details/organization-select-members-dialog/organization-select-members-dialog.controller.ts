@@ -88,7 +88,7 @@ export class OrganizationSelectMembersDialogController {
   /**
    *
    */
-  private organizationRoles: che.resource.ICheOrganizationRoles;
+  private organizationRoles: che.resources.ICheOrganizationRoles;
 
   /**
    * Default constructor.

@@ -40,4 +40,4 @@ class CheOrganizationActionsStatic {
   }
 }
 
-export const CheOrganizationActions: che.resource.ICheOrganizationActions = CheOrganizationActionsStatic;
+export const CheOrganizationActions: che.resources.ICheOrganizationActions = CheOrganizationActionsStatic;

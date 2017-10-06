@@ -98,11 +98,11 @@ export class ListOrganizationsController {
   /**
    * todo
    */
-  private resourceLimits: che.resource.ICheResourceLimits;
+  private resourceLimits: che.resources.ICheResourceLimits;
   /**
    * todo
    */
-  private organizationActions: che.resource.ICheOrganizationActions;
+  private organizationActions: che.resources.ICheOrganizationActions;
 
   /**
    * Default constructor that is using resource

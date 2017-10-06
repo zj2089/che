@@ -31,4 +31,4 @@ export class CheResourceLimitsStatic {
   }
 }
 
-export const CheResourceLimits: che.resource.ICheResourceLimits = CheResourceLimitsStatic;
+export const CheResourceLimits: che.resources.ICheResourceLimits = CheResourceLimitsStatic;

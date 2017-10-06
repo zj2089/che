@@ -50,4 +50,4 @@ class CheTeamRolesStatic {
 
 }
 
-export const CheTeamRoles: che.resource.ICheTeamRoles = CheTeamRolesStatic;
+export const CheTeamRoles: che.resources.ICheTeamRoles = CheTeamRolesStatic;

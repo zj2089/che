@@ -53,7 +53,7 @@ export class OrganizationsItemController {
   /**
    * todo
    */
-  private organizationActions: che.resource.ICheOrganizationActions;
+  private organizationActions: che.resources.ICheOrganizationActions;
 
   /**
    * Default constructor that is using resource injection

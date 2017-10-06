@@ -35,10 +35,10 @@ declare namespace che {
       getUsedOrganizationResources(organizationId: string): any;
       fetchAvailableOrganizationResources(organizationId: string): ng.IPromise<any>;
       getAvailableOrganizationResources(organizationId: string): any;
-      getOrganizationTotalResourceByType(organizationId: string, type: che.resource.resourceLimits): any;
-      getOrganizationAvailableResourceByType(organizationId: string, type: che.resource.resourceLimits): any;
-      getOrganizationResourceByType(organizationId: string, type: che.resource.resourceLimits): any;
-      setOrganizationResourceLimitByType(resources: any, type: che.resource.resourceLimits, value: string): any;
+      getOrganizationTotalResourceByType(organizationId: string, type: che.resources.resourceLimits): any;
+      getOrganizationAvailableResourceByType(organizationId: string, type: che.resources.resourceLimits): any;
+      getOrganizationResourceByType(organizationId: string, type: che.resources.resourceLimits): any;
+      setOrganizationResourceLimitByType(resources: any, type: che.resources.resourceLimits, value: string): any;
     }
 
     export interface ICheOrganization {
@@ -125,7 +125,7 @@ declare namespace che {
 
   }
 
-  export namespace resource {
+  export namespace resources {
 
     export type resourceLimits = string;
     export interface ICheResourceLimits {
@@ -164,10 +164,10 @@ declare namespace che {
   export namespace service {
 
     export interface IResourcesService {
-      getResourceLimits(): che.resource.ICheResourceLimits;
-      getOrganizationActions(): che.resource.ICheOrganizationActions;
-      getOrganizationRoles(): che.resource.ICheOrganizationRoles;
-      getTeamRoles(): che.resource.ICheTeamRoles;
+      getResourceLimits(): che.resources.ICheResourceLimits;
+      getOrganizationActions(): che.resources.ICheOrganizationActions;
+      getOrganizationRoles(): che.resources.ICheOrganizationRoles;
+      getTeamRoles(): che.resources.ICheTeamRoles;
     }
 
   }

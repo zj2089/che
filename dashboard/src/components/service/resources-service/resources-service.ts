@@ -19,19 +19,19 @@ import {CheTeamRoles} from '../../api/che-team-roles';
  */
 export class ResourcesService implements che.service.IResourcesService {
 
-  getResourceLimits(): che.resource.ICheResourceLimits {
+  getResourceLimits(): che.resources.ICheResourceLimits {
     return CheResourceLimits;
   }
 
-  getOrganizationActions(): che.resource.ICheOrganizationActions {
+  getOrganizationActions(): che.resources.ICheOrganizationActions {
     return CheOrganizationActions;
   }
 
-  getOrganizationRoles(): che.resource.ICheOrganizationRoles {
+  getOrganizationRoles(): che.resources.ICheOrganizationRoles {
     return CheOrganizationRoles;
   }
 
-  getTeamRoles(): che.resource.ICheTeamRoles {
+  getTeamRoles(): che.resources.ICheTeamRoles {
     return CheTeamRoles;
   }
 

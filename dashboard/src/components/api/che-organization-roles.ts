@@ -59,4 +59,4 @@ class CheOrganizationRolesStatic {
 
 }
 
-export const CheOrganizationRoles: che.resource.ICheOrganizationRoles = CheOrganizationRolesStatic;
+export const CheOrganizationRoles: che.resources.ICheOrganizationRoles = CheOrganizationRolesStatic;

@@ -28,7 +28,7 @@ export class AdminsAddUserController {
   private organization: string;
   private cheOrganization: che.api.ICheOrganization;
   private chePermissions: che.api.IChePermissions;
-  private organizationRoles: che.resource.ICheOrganizationRoles;
+  private organizationRoles: che.resources.ICheOrganizationRoles;
 
   /**
    * Default constructor.

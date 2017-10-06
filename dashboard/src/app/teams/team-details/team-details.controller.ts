@@ -98,7 +98,7 @@ export class TeamDetailsController {
 
   private hasTeamAccess: boolean;
 
-  private resourceLimits: che.resource.ICheResourceLimits;
+  private resourceLimits: che.resources.ICheResourceLimits;
 
   /**
    * Default constructor that is using resource injection
