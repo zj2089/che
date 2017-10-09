@@ -64,6 +64,7 @@
 
     <g:HTMLPanel styleName="{style.panel}">
         <pre class="{style.content}">
+
 <pre ui:field="waitingWorkspaceTitle" style="display: none;">Waiting workspace machines to be booted...</pre>
 
 <pre ui:field="preparingWorkspaceRuntime" style="display: none;">
@@ -87,13 +88,6 @@
 -----------------------------------------------------------------------
 
 <pre rel="done">Workspace successfully started</pre>
-
------------------------------------------------------------------------
-</pre>
-<pre ui:field="workspaceIsAlreadyRunning" style="display: none;">
------------------------------------------------------------------------
-
-<pre rel="done">Workspace is already running</pre>
 
 -----------------------------------------------------------------------
 </pre>

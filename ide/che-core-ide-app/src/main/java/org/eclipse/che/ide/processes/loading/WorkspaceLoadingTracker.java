@@ -10,14 +10,9 @@
  */
 package org.eclipse.che.ide.processes.loading;
 
-/**
- * Listens workspace events and outputs and visualizes the workspace loading process.
- */
+/** Listens workspace events and outputs and visualizes the workspace loading process. */
 public interface WorkspaceLoadingTracker {
 
-  /**
-   * Starts tracking of workspace loading.
-   */
+  /** Starts tracking of workspace loading. */
   void startTracking();
-
 }

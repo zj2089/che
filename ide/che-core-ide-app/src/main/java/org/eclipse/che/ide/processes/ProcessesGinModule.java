@@ -33,7 +33,9 @@ public class ProcessesGinModule extends AbstractGinModule {
   protected void configure() {
     bind(WorkspaceLoadingTracker.class).to(WorkspaceLoadingTrackerImpl.class).in(Singleton.class);
     bind(ProcessesPanelView.class).to(ProcessesPanelViewImpl.class).in(Singleton.class);
-    bind(WorkspaceLoadingTrackerView.class).to(WorkspaceLoadingTrackerViewImpl.class).in(Singleton.class);
+    bind(WorkspaceLoadingTrackerView.class)
+        .to(WorkspaceLoadingTrackerViewImpl.class)
+        .in(Singleton.class);
     install(new GinFactoryModuleBuilder().build(ConsoleTreeContextMenuFactory.class));
     install(new GinFactoryModuleBuilder().build(AddTabMenuFactory.class));
 

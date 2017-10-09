@@ -10,12 +10,11 @@
  */
 package org.eclipse.che.ide.processes.loading;
 
-import com.google.gwt.core.client.Scheduler;
-import com.google.gwt.user.client.Timer;
-import com.google.gwt.user.client.Window;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import com.google.web.bindery.event.shared.EventBus;
+import java.util.HashMap;
+import java.util.Map;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.ide.api.app.AppContext;
 import org.eclipse.che.ide.api.workspace.event.MachineRunningEvent;
@@ -23,28 +22,23 @@ import org.eclipse.che.ide.api.workspace.event.MachineStartingEvent;
 import org.eclipse.che.ide.api.workspace.event.WorkspaceRunningEvent;
 import org.eclipse.che.ide.api.workspace.model.EnvironmentImpl;
 import org.eclipse.che.ide.api.workspace.model.MachineConfigImpl;
-import org.eclipse.che.ide.api.workspace.model.MachineImpl;
-import org.eclipse.che.ide.console.CommandConsoleFactory;
 import org.eclipse.che.ide.machine.MachineResources;
 import org.eclipse.che.ide.processes.panel.EnvironmentOutputEvent;
 import org.eclipse.che.ide.processes.panel.ProcessesPanelPresenter;
 import org.eclipse.che.ide.processes.panel.ProcessesPanelView;
 
-import java.util.HashMap;
-import java.util.Map;
-
-/**
- * Created by vetal on 9/29/17.
- */
+/** Listens workspace events and outputs and visualizes the workspace loading process. */
 @Singleton
-public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, EnvironmentOutputEvent.Handler {
+public class WorkspaceLoadingTrackerImpl
+    implements WorkspaceLoadingTracker, EnvironmentOutputEvent.Handler {
 
+  /** Part of a docker image. */
   private class Chunk {
     long size = 0;
     long downloaded = 0;
-    boolean waiting = true;
   }
 
+  /** Docker image. */
   private class Image {
     private String machineName;
     private String sha256;
@@ -97,7 +91,6 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
 
   private final WorkspaceLoadingTrackerView view;
 
-  //private Map<String, String> downloadProgress = new HashMap<>();
   private Map<String, Image> images = new HashMap<>();
 
   @Inject
@@ -106,8 +99,7 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       EventBus eventBus,
       ProcessesPanelPresenter processesPanelPresenter,
       MachineResources resources,
-      WorkspaceLoadingTrackerView view
-  ) {
+      WorkspaceLoadingTrackerView view) {
 
     this.appContext = appContext;
     this.eventBus = eventBus;
@@ -116,25 +108,30 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
 
     this.view = view;
 
-    eventBus.addHandler(WorkspaceRunningEvent.TYPE, new WorkspaceRunningEvent.Handler() {
-      @Override
-      public void onWorkspaceRunning(WorkspaceRunningEvent event) {
-        onWorkspaceRunnning();
-      }
-    });
+    eventBus.addHandler(
+        WorkspaceRunningEvent.TYPE,
+        new WorkspaceRunningEvent.Handler() {
+          @Override
+          public void onWorkspaceRunning(WorkspaceRunningEvent event) {
+            onWorkspaceRunnning();
+          }
+        });
 
-    eventBus.addHandler(MachineStartingEvent.TYPE, new MachineStartingEvent.Handler() {
-      @Override
-      public void onMachineStarting(MachineStartingEvent event) {
-      }
-    });
+    eventBus.addHandler(
+        MachineStartingEvent.TYPE,
+        new MachineStartingEvent.Handler() {
+          @Override
+          public void onMachineStarting(MachineStartingEvent event) {}
+        });
 
-    eventBus.addHandler(MachineRunningEvent.TYPE, new MachineRunningEvent.Handler() {
-      @Override
-      public void onMachineRunning(MachineRunningEvent event) {
-        view.setStartWorkspaceRuntimeRunning(event.getMachine().getName());
-      }
-    });
+    eventBus.addHandler(
+        MachineRunningEvent.TYPE,
+        new MachineRunningEvent.Handler() {
+          @Override
+          public void onMachineRunning(MachineRunningEvent event) {
+            view.setStartWorkspaceRuntimeRunning(event.getMachine().getName());
+          }
+        });
   }
 
   private void onWorkspaceRunnning() {
@@ -143,54 +140,40 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
     }
 
     view.showStartingWorkspaceRuntimes();
-//    view.showInitializingWorkspaceAgents();
     view.showWorkspaceStarted();
   }
 
-//  private void onWorkspaceAlreadyRunning() {
-//    view.showWorkspaceIsAlreadyRunning();
-//  }
-
-  private static native void log(String msg) /*-{ console.log(msg); }-*/;
-
   @Override
   public void startTracking() {
-    log(">> startTracking");
-
     if (WorkspaceStatus.RUNNING == appContext.getWorkspace().getStatus()) {
-//      onWorkspaceAlreadyRunning();
       return;
     }
 
     view.showLoadingStarted();
 
     String defaultEnvironmentName = appContext.getWorkspace().getConfig().getDefaultEnv();
-    EnvironmentImpl defaultEnvironment = appContext.getWorkspace().getConfig().getEnvironments().get(defaultEnvironmentName);
+    EnvironmentImpl defaultEnvironment =
+        appContext.getWorkspace().getConfig().getEnvironments().get(defaultEnvironmentName);
 
     Map<String, MachineConfigImpl> machines = defaultEnvironment.getMachines();
     for (final String machineName : machines.keySet()) {
       MachineConfigImpl machine = machines.get(machineName);
-      log(">> machine " + machineName);
-
       view.pullMachine(machineName);
 
-      //downloadProgress.put(machineName, "");
       images.put(machineName, new Image(machineName));
     }
 
     eventBus.addHandler(EnvironmentOutputEvent.TYPE, this);
-    ((ProcessesPanelView)processesPanelPresenter.getView()).addWidget("*", "Workspace-start", resources.output(), view, true);
+    ((ProcessesPanelView) processesPanelPresenter.getView())
+        .addWidget("*", "Workspace-start", resources.output(), view, true);
   }
 
   @Override
   public void onEnvironmentOutput(EnvironmentOutputEvent event) {
-    log(">> onEnvironmentOutput " + event.getMachineName() + " : " + event.getContent());
-
-    ((ProcessesPanelView)processesPanelPresenter.getView()).showProcessOutput("*");
+    ((ProcessesPanelView) processesPanelPresenter.getView()).showProcessOutput("*");
 
     Image machine = images.get(event.getMachineName());
     if (machine == null) {
-      // TEMPORARY don't handle the machine if it is not exist
       return;
     }
 
@@ -219,10 +202,6 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
         // [DOCKER] d010c8cf75d7: Waiting
         return;
 
-//      } else if (dockerWaitingPullingChunk(machine, text)) {
-//        // [DOCKER] d010c8cf75d7: Waiting
-//        return;
-
       } else if (dockerChunkPullingProgress(machine, text)) {
         // [DOCKER] 9fb6c798fa41: Downloading 16.22 MB/47.54 MB
         // gives how much of chunk has been already downloaded
@@ -235,20 +214,16 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       }
 
     } catch (Exception e) {
-      log("ERROR. Unable to parse docker output. " + e.getMessage());
       return;
     }
-
-    // [DOCKER] 6fabefc10853: Verifying Checksum
-    // skip this
   }
 
   /**
-   * [DOCKER] sha256:40a6dd3c1f3af152d834e66fdf1dbca722dbc8ab4e98e157251c5179e8a6aa44: Pulling from docker.io/eclipse/ubuntu_jdk8
+   * [DOCKER] sha256:40a6dd3c1f3af152d834e66fdf1dbca722dbc8ab4e98e157251c5179e8a6aa44: Pulling from
+   * docker.io/eclipse/ubuntu_jdk8
    *
    * @param machine
    * @param text
-   *
    * @return
    */
   private boolean dockerPullingStarted(Image machine, String text) {
@@ -256,16 +231,14 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       return false;
     }
 
-    String []parts = text.split(":");
+    String[] parts = text.split(":");
 
     String sha256 = parts[1];
-    log("SHA [" + sha256 + "]");
     machine.setSha256(sha256);
 
     String dockerImage = parts[2];
     if (dockerImage.startsWith(" Pulling from ")) {
       dockerImage = dockerImage.substring(" Pulling from ".length()).trim();
-      log("DOCKER IMAGE [" + dockerImage + "]");
       machine.setDockerImage(dockerImage);
       view.setMachineImage(machine.getMachineName(), dockerImage);
     }
@@ -285,44 +258,37 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       return false;
     }
 
-    String []parts = text.split(":");
-
+    String[] parts = text.split(":");
     String sha256 = parts[2].trim();
-    log("SHA [" + sha256 + "]");
 
     if (sha256.equals(machine.getSha256())) {
       machine.setDownloaded(true);
       view.setMachinePullingComplete(machine.getMachineName());
-    } else {
-      log("ERROR! Image sha256:" + sha256 + " not found!");
     }
 
     view.showStartingWorkspaceRuntimes();
-
     view.addStartWorkspaceRuntime(machine.getMachineName(), machine.getDockerImage());
 
     return true;
   }
 
   /**
-   * [DOCKER] 6a447dcfe27d: Pulling fs layer
-   * [DOCKER] d010c8cf75d7: Waiting
+   * [DOCKER] 6a447dcfe27d: Pulling fs layer [DOCKER] d010c8cf75d7: Waiting
    *
    * @param machine
    * @param text
    * @return
    */
   private boolean dockerPreparePullingChunk(Image machine, String text) {
-    if (!(text.startsWith("[DOCKER] ") && (text.indexOf(": Pulling fs layer") > 0 || text.indexOf(": Waiting") > 0))) {
+    if (!(text.startsWith("[DOCKER] ")
+        && (text.indexOf(": Pulling fs layer") > 0 || text.indexOf(": Waiting") > 0))) {
       return false;
     }
 
     text = text.substring("[DOCKER] ".length());
 
-    String []parts = text.split(":");
-
+    String[] parts = text.split(":");
     String hash = parts[0];
-    log(">> docker pulling progress HASH [" + hash + "]");
 
     Chunk chunk = machine.getChunks().get(hash);
     if (chunk == null) {
@@ -348,13 +314,13 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
     text = text.substring("[DOCKER] ".length());
     // now text must be like `e7cfbd075aa8: Downloading 67.58 MB/244.3 MB`
 
-    String []parts = text.split(":");
+    String[] parts = text.split(":");
 
     String hash = parts[0];
     String value = parts[1].substring(" Downloading ".length());
     // now value must be like `67.58 MB/244.3 MB`
 
-    String []values = value.split("/");
+    String[] values = value.split("/");
 
     long downloaded = getSizeInBytes(values[0]);
     long size = getSizeInBytes(values[1]);
@@ -367,7 +333,6 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
 
     chunk.downloaded = downloaded;
     chunk.size = size;
-    chunk.waiting = false;
 
     refreshMachineDownloadingProgress(machine);
 
@@ -378,26 +343,18 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
     long totalDownloaded = 0;
     long totalSize = 0;
 
-    int waitings = 0;
-
     for (Chunk chunk : machine.chunks.values()) {
-      if (chunk.waiting) {
-        waitings++;
-      }
-
       totalSize += chunk.size;
       totalDownloaded += chunk.downloaded;
     }
 
-    double percents = Math.round(totalDownloaded * 100 / totalSize);
-    view.setMachinePullingProgress(machine.getMachineName(), percents + "%");
+    int percents = Math.round(totalDownloaded * 100 / totalSize);
+    view.setMachinePullingProgress(machine.getMachineName(), percents);
   }
 
   /**
-   * `621 B`      -> return 621
-   * `490.8 kB`   -> return 490.8 * 1024
-   * `1.474 MB`   -> return 1.474 * 1024 * 1024
-   * `244.3 MB`   -> return 244.3 * 1024 * 1024
+   * `621 B` -> return 621 `490.8 kB` -> return 490.8 * 1024 `1.474 MB` -> return 1.474 * 1024 *
+   * 1024 `244.3 MB` -> return 244.3 * 1024 * 1024
    *
    * @param value
    * @return
@@ -411,10 +368,10 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       size = Long.parseLong(value);
     } else if (value.endsWith(" KB")) {
       value = value.substring(0, value.length() - 3);
-      size = (long)(Double.parseDouble(value) * 1024);
+      size = (long) (Double.parseDouble(value) * 1024);
     } else if (value.endsWith(" MB")) {
       value = value.substring(0, value.length() - 3);
-      size = (long)(Double.parseDouble(value) * 1024 * 1024);
+      size = (long) (Double.parseDouble(value) * 1024 * 1024);
     }
 
     return size;
@@ -430,5 +387,4 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
   private boolean dockerChunkPullingCompleted(Image machine, String text) {
     return false;
   }
-
 }

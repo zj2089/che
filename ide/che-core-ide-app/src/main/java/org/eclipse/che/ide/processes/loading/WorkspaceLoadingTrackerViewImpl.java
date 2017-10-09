@@ -13,7 +13,6 @@ package org.eclipse.che.ide.processes.loading;
 import com.google.gwt.dom.client.Element;
 import com.google.gwt.dom.client.Node;
 import com.google.gwt.dom.client.PreElement;
-import com.google.gwt.dom.client.Style;
 import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
@@ -22,79 +21,104 @@ import com.google.gwt.user.client.ui.RequiresResize;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * View for tracking workspace loading progress.
- */
+/** View for tracking workspace loading progress. */
+public class WorkspaceLoadingTrackerViewImpl extends Composite
+    implements WorkspaceLoadingTrackerView, RequiresResize {
 
-public class WorkspaceLoadingTrackerViewImpl extends Composite implements WorkspaceLoadingTrackerView, RequiresResize {
-
-  interface WorkspaceLoadingTrackerViewImplUiBinder extends UiBinder<Widget, WorkspaceLoadingTrackerViewImpl> {}
+  interface WorkspaceLoadingTrackerViewImplUiBinder
+      extends UiBinder<Widget, WorkspaceLoadingTrackerViewImpl> {}
 
   private static final int MACHINE_NAME_WIDTH = 25;
   private static final int IMAGE_NAME_WIDTH = 35;
   private static final int PROGRESS_WIDTH = 33;
 
-  private static final String PROGRESS = "-------------------------";
+  private static final String LOADING_CHAR1 = "&blk14;";
 
-  @UiField
-  PreElement waitingWorkspaceTitle;
+//  private static final String LOADING_CHAR2 = "&block;";
+  private static final String LOADING_CHAR2 = "&blk34;";
 
-  @UiField
-  PreElement preparingWorkspaceRuntime;
+  @UiField PreElement waitingWorkspaceTitle;
 
-  @UiField
-  PreElement preparingWorkspaceRuntimeItems;
+  @UiField PreElement preparingWorkspaceRuntime;
+
+  @UiField PreElement preparingWorkspaceRuntimeItems;
 
   private Node preparingWorkspaceRuntimeOriginalItem;
   private Node preparingWorkspaceRuntimeOriginalNewLine;
 
-  @UiField
-  PreElement startingWorkspaceRuntimes;
+  @UiField PreElement startingWorkspaceRuntimes;
 
-  @UiField
-  PreElement startingWorkspaceRuntimesItems;
+  @UiField PreElement startingWorkspaceRuntimesItems;
 
   private Node startingWorkspaceRuntimesOriginalItem;
   private Node startingWorkspaceRuntimesOriginalNewLine;
 
-  @UiField
-  PreElement initializingWorkspaceAgents;
+  @UiField PreElement initializingWorkspaceAgents;
 
-  @UiField
-  PreElement workspaceStarted;
-
-  @UiField
-  PreElement workspaceIsAlreadyRunning;
+  @UiField PreElement workspaceStarted;
 
   private Map<String, Node> step1Nodes = new LinkedHashMap<>();
   private Map<String, Node> step2Nodes = new LinkedHashMap<>();
+
+  private List<Element> animatedElements = new ArrayList<>();
 
   @Inject
   public WorkspaceLoadingTrackerViewImpl(WorkspaceLoadingTrackerViewImplUiBinder uiBinder) {
     initWidget(uiBinder.createAndBindUi(this));
 
     // initialize element templates
-    preparingWorkspaceRuntimeOriginalItem = preparingWorkspaceRuntimeItems.getChildNodes().getItem(0);
-    preparingWorkspaceRuntimeOriginalNewLine = preparingWorkspaceRuntimeItems.getChildNodes().getItem(1);
+    preparingWorkspaceRuntimeOriginalItem =
+        preparingWorkspaceRuntimeItems.getChildNodes().getItem(0);
+    preparingWorkspaceRuntimeOriginalNewLine =
+        preparingWorkspaceRuntimeItems.getChildNodes().getItem(1);
     preparingWorkspaceRuntimeItems.removeChild(preparingWorkspaceRuntimeOriginalItem);
     preparingWorkspaceRuntimeItems.removeChild(preparingWorkspaceRuntimeOriginalNewLine);
 
-    startingWorkspaceRuntimesOriginalItem = startingWorkspaceRuntimesItems.getChildNodes().getItem(0);
-    startingWorkspaceRuntimesOriginalNewLine = startingWorkspaceRuntimesItems.getChildNodes().getItem(1);
+    startingWorkspaceRuntimesOriginalItem =
+        startingWorkspaceRuntimesItems.getChildNodes().getItem(0);
+    startingWorkspaceRuntimesOriginalNewLine =
+        startingWorkspaceRuntimesItems.getChildNodes().getItem(1);
     startingWorkspaceRuntimesItems.removeChild(startingWorkspaceRuntimesOriginalItem);
     startingWorkspaceRuntimesItems.removeChild(startingWorkspaceRuntimesOriginalNewLine);
-  }
 
-  private static native void log(String msg) /*-{ console.log(msg); }-*/;
+    animationTimer.scheduleRepeating(200);
+  }
 
   @Override
   public void showLoadingStarted() {
     waitingWorkspaceTitle.getStyle().clearDisplay();
     preparingWorkspaceRuntime.getStyle().clearDisplay();
   }
+
+  private Timer animationTimer = new Timer() {
+    @Override
+    public void run() {
+      for (Element e : animatedElements) {
+        String text = e.getInnerText();
+        switch (text) {
+          case "    ": e.setInnerText("/   "); break;
+          case "/   ": e.setInnerText("//  "); break;
+          case "//  ": e.setInnerText("/// "); break;
+          case "/// ": e.setInnerText("////"); break;
+          case "////": e.setInnerText(" ///"); break;
+          case " ///": e.setInnerText("  //"); break;
+          case "  //": e.setInnerText("   /"); break;
+          case "   /": e.setInnerText("    "); break;
+
+          case "/" : e.setInnerText("-"); break;
+          case "-" : e.setInnerText("\\"); break;
+          case "\\": e.setInnerText("|"); break;
+          case "|" : e.setInnerText("/"); break;
+
+        }
+      }
+    }
+  };
 
   @Override
   public void pullMachine(String machine) {
@@ -125,12 +149,15 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
       }
 
       if ("progress".equals(e.getAttribute("rel"))) {
-        e.setInnerText(expandString("Preparing...", PROGRESS_WIDTH));
+        e.setInnerHTML(expandString("Preparing...", PROGRESS_WIDTH));
         continue;
       }
 
       if ("progress-value".equals(e.getAttribute("rel"))) {
-        e.setInnerText("////");
+        // must be animated
+        e.setInnerText("    ");
+        animatedElements.add(e);
+
         continue;
       }
     }
@@ -158,12 +185,22 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
     }
   }
 
-  @Override
-  public void setMachinePullingProgress(String machine, int percents) {
+  private String getLoadingProgressBar(int percents) {
+    int maxChars = 25;
+
+    int chars = maxChars * percents / 100;
+
+    String result = "";
+
+    for (int i = 0; i < maxChars; i++) {
+      result += i < chars ? LOADING_CHAR2 : LOADING_CHAR1;
+    }
+
+    return result;
   }
 
   @Override
-  public void setMachinePullingProgress(String machine, String value) {
+  public void setMachinePullingProgress(String machine, int percents) {
     Node cloned = step1Nodes.get(machine);
     if (cloned == null) {
       return;
@@ -178,12 +215,12 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
       Element e = n.cast();
 
       if ("progress".equals(e.getAttribute("rel"))) {
-        e.setInnerText("Pulling " + PROGRESS);
+        e.setInnerHTML("Pulling " + getLoadingProgressBar(percents));
         continue;
       }
 
       if ("progress-value".equals(e.getAttribute("rel"))) {
-        e.setInnerText(value);
+        e.setInnerText(percents + "%");
         continue;
       }
     }
@@ -232,12 +269,10 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
   }
 
   @Override
-  public void onResize() {
-  }
+  public void onResize() {}
 
   @Override
   public void showStartingWorkspaceRuntimes() {
-    log(">> showStartingWorkspaceRuntimes");
     startingWorkspaceRuntimes.getStyle().clearDisplay();
   }
 
@@ -275,7 +310,9 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
       }
 
       if ("progress-value".equals(e.getAttribute("rel"))) {
-        e.setInnerText("////");
+//        e.setInnerText("////");
+        e.setInnerText("    ");
+        animatedElements.add(e);
         continue;
       }
     }
@@ -311,24 +348,14 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
 
   @Override
   public void showInitializingWorkspaceAgents() {
-    log(">> showInitializingWorkspaceAgents");
     initializingWorkspaceAgents.getStyle().clearDisplay();
   }
 
   @Override
   public void showWorkspaceStarted() {
-    log(">> showWorkspaceStarted");
     workspaceStarted.getStyle().clearDisplay();
-  }
 
-  @Override
-  public void showWorkspaceIsAlreadyRunning() {
-    waitingWorkspaceTitle.getStyle().setDisplay(Style.Display.NONE);
-    preparingWorkspaceRuntime.getStyle().setDisplay(Style.Display.NONE);
-    startingWorkspaceRuntimes.getStyle().setDisplay(Style.Display.NONE);
-    initializingWorkspaceAgents.getStyle().setDisplay(Style.Display.NONE);
-    workspaceStarted.getStyle().setDisplay(Style.Display.NONE);
-
-    workspaceIsAlreadyRunning.getStyle().clearDisplay();
+    animatedElements.clear();
+    animationTimer.cancel();
   }
 }
