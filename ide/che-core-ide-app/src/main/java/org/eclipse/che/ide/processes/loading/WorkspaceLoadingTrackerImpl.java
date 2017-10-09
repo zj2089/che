@@ -389,17 +389,7 @@ public class WorkspaceLoadingTrackerImpl implements WorkspaceLoadingTracker, Env
       totalDownloaded += chunk.downloaded;
     }
 
-    log(">> TOTAL DOWNLOADED " + totalDownloaded);
-    log(">> TOTAL SIZE " + totalSize);
-
-    log(">> WAITINGS " + waitings);
-    if (waitings > 2) {
-      return;
-    }
-
     double percents = Math.round(totalDownloaded * 100 / totalSize);
-    log(">> percents [" + percents + "]");
-
     view.setMachinePullingProgress(machine.getMachineName(), percents + "%");
   }
 

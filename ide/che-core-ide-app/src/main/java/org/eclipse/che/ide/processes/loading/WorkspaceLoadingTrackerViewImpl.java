@@ -177,6 +177,11 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
 
       Element e = n.cast();
 
+      if ("progress".equals(e.getAttribute("rel"))) {
+        e.setInnerText("Pulling " + PROGRESS);
+        continue;
+      }
+
       if ("progress-value".equals(e.getAttribute("rel"))) {
         e.setInnerText(value);
         continue;
@@ -211,7 +216,6 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite implements Worksp
       }
     }
   }
-
 
   private String expandString(String source, int length) {
     String result = source;
