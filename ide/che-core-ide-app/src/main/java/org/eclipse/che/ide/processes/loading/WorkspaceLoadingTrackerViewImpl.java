@@ -17,10 +17,8 @@ import com.google.gwt.uibinder.client.UiBinder;
 import com.google.gwt.uibinder.client.UiField;
 import com.google.gwt.user.client.Timer;
 import com.google.gwt.user.client.ui.Composite;
-import com.google.gwt.user.client.ui.RequiresResize;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
-
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +26,7 @@ import java.util.Map;
 
 /** View for tracking workspace loading progress. */
 public class WorkspaceLoadingTrackerViewImpl extends Composite
-    implements WorkspaceLoadingTrackerView, RequiresResize {
+    implements WorkspaceLoadingTrackerView {
 
   interface WorkspaceLoadingTrackerViewImplUiBinder
       extends UiBinder<Widget, WorkspaceLoadingTrackerViewImpl> {}
@@ -38,9 +36,9 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   private static final int PROGRESS_WIDTH = 33;
 
   private static final String LOADING_CHAR1 = "&blk14;";
-
-//  private static final String LOADING_CHAR2 = "&block;";
   private static final String LOADING_CHAR2 = "&blk34;";
+
+  private static final String ANIMATION_START = "    ";
 
   @UiField PreElement waitingWorkspaceTitle;
 
@@ -90,35 +88,59 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void showLoadingStarted() {
+  public void startLoading() {
     waitingWorkspaceTitle.getStyle().clearDisplay();
     preparingWorkspaceRuntime.getStyle().clearDisplay();
   }
 
-  private Timer animationTimer = new Timer() {
-    @Override
-    public void run() {
-      for (Element e : animatedElements) {
-        String text = e.getInnerText();
-        switch (text) {
-          case "    ": e.setInnerText("/   "); break;
-          case "/   ": e.setInnerText("//  "); break;
-          case "//  ": e.setInnerText("/// "); break;
-          case "/// ": e.setInnerText("////"); break;
-          case "////": e.setInnerText(" ///"); break;
-          case " ///": e.setInnerText("  //"); break;
-          case "  //": e.setInnerText("   /"); break;
-          case "   /": e.setInnerText("    "); break;
+  private Timer animationTimer =
+      new Timer() {
+        @Override
+        public void run() {
+          for (Element e : animatedElements) {
+            String text = e.getInnerText();
+            switch (text) {
+              case "    ":
+                e.setInnerText("/   ");
+                break;
+              case "/   ":
+                e.setInnerText("//  ");
+                break;
+              case "//  ":
+                e.setInnerText("/// ");
+                break;
+              case "/// ":
+                e.setInnerText("////");
+                break;
+              case "////":
+                e.setInnerText(" ///");
+                break;
+              case " ///":
+                e.setInnerText("  //");
+                break;
+              case "  //":
+                e.setInnerText("   /");
+                break;
+              case "   /":
+                e.setInnerText("    ");
+                break;
 
-          case "/" : e.setInnerText("-"); break;
-          case "-" : e.setInnerText("\\"); break;
-          case "\\": e.setInnerText("|"); break;
-          case "|" : e.setInnerText("/"); break;
-
+              case "/":
+                e.setInnerText("-");
+                break;
+              case "-":
+                e.setInnerText("\\");
+                break;
+              case "\\":
+                e.setInnerText("|");
+                break;
+              case "|":
+                e.setInnerText("/");
+                break;
+            }
+          }
         }
-      }
-    }
-  };
+      };
 
   @Override
   public void pullMachine(String machine) {
@@ -155,9 +177,8 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
 
       if ("progress-value".equals(e.getAttribute("rel"))) {
         // must be animated
-        e.setInnerText("    ");
+        e.setInnerText(ANIMATION_START);
         animatedElements.add(e);
-
         continue;
       }
     }
@@ -200,7 +221,7 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void setMachinePullingProgress(String machine, int percents) {
+  public void onPullingProgress(String machine, int percents) {
     Node cloned = step1Nodes.get(machine);
     if (cloned == null) {
       return;
@@ -227,7 +248,7 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void setMachinePullingComplete(String machine) {
+  public void onPullingComplete(String machine) {
     Node cloned = step1Nodes.get(machine);
     if (cloned == null) {
       return;
@@ -269,15 +290,12 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void onResize() {}
-
-  @Override
-  public void showStartingWorkspaceRuntimes() {
+  public void startWorkspaceMachines() {
     startingWorkspaceRuntimes.getStyle().clearDisplay();
   }
 
   @Override
-  public void addStartWorkspaceRuntime(String machine, String image) {
+  public void startWorkspaceMachine(String machine, String image) {
     // add machine node to pull
     Node cloned = startingWorkspaceRuntimesOriginalItem.cloneNode(true);
     step2Nodes.put(machine, cloned);
@@ -310,8 +328,8 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
       }
 
       if ("progress-value".equals(e.getAttribute("rel"))) {
-//        e.setInnerText("////");
-        e.setInnerText("    ");
+        // must be animated
+        e.setInnerText(ANIMATION_START);
         animatedElements.add(e);
         continue;
       }
@@ -319,7 +337,7 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void setStartWorkspaceRuntimeRunning(String machine) {
+  public void onMachineRunning(String machine) {
     Node cloned = step2Nodes.get(machine);
     if (cloned == null) {
       return;
@@ -352,7 +370,7 @@ public class WorkspaceLoadingTrackerViewImpl extends Composite
   }
 
   @Override
-  public void showWorkspaceStarted() {
+  public void onWorkspaceStarted() {
     workspaceStarted.getStyle().clearDisplay();
 
     animatedElements.clear();

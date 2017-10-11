@@ -129,18 +129,18 @@ public class WorkspaceLoadingTrackerImpl
         new MachineRunningEvent.Handler() {
           @Override
           public void onMachineRunning(MachineRunningEvent event) {
-            view.setStartWorkspaceRuntimeRunning(event.getMachine().getName());
+            view.onMachineRunning(event.getMachine().getName());
           }
         });
   }
 
   private void onWorkspaceRunnning() {
     for (String machineName : images.keySet()) {
-      view.setMachinePullingComplete(machineName);
+      view.onPullingComplete(machineName);
     }
 
-    view.showStartingWorkspaceRuntimes();
-    view.showWorkspaceStarted();
+    //    view.showStartingWorkspaceRuntimes();
+    view.onWorkspaceStarted();
   }
 
   @Override
@@ -149,7 +149,7 @@ public class WorkspaceLoadingTrackerImpl
       return;
     }
 
-    view.showLoadingStarted();
+    view.startLoading();
 
     String defaultEnvironmentName = appContext.getWorkspace().getConfig().getDefaultEnv();
     EnvironmentImpl defaultEnvironment =
@@ -157,9 +157,7 @@ public class WorkspaceLoadingTrackerImpl
 
     Map<String, MachineConfigImpl> machines = defaultEnvironment.getMachines();
     for (final String machineName : machines.keySet()) {
-      MachineConfigImpl machine = machines.get(machineName);
       view.pullMachine(machineName);
-
       images.put(machineName, new Image(machineName));
     }
 
@@ -263,11 +261,11 @@ public class WorkspaceLoadingTrackerImpl
 
     if (sha256.equals(machine.getSha256())) {
       machine.setDownloaded(true);
-      view.setMachinePullingComplete(machine.getMachineName());
+      view.onPullingComplete(machine.getMachineName());
     }
 
-    view.showStartingWorkspaceRuntimes();
-    view.addStartWorkspaceRuntime(machine.getMachineName(), machine.getDockerImage());
+    view.startWorkspaceMachines();
+    view.startWorkspaceMachine(machine.getMachineName(), machine.getDockerImage());
 
     return true;
   }
@@ -349,7 +347,7 @@ public class WorkspaceLoadingTrackerImpl
     }
 
     int percents = Math.round(totalDownloaded * 100 / totalSize);
-    view.setMachinePullingProgress(machine.getMachineName(), percents);
+    view.onPullingProgress(machine.getMachineName(), percents);
   }
 
   /**

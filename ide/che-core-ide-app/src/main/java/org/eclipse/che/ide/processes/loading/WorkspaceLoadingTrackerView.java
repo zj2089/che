@@ -5,29 +5,60 @@ import com.google.gwt.user.client.ui.IsWidget;
 /** Created by vetal on 9/29/17. */
 public interface WorkspaceLoadingTrackerView extends IsWidget {
 
-  void showLoadingStarted();
+  /** Displays loading title and pulling machines section. */
+  void startLoading();
 
-  /** Step 1. Pull machines images. */
+  /**
+   * Adds machine to the downloading list.
+   *
+   * @param machine machine name
+   */
   void pullMachine(String machine);
 
+  /**
+   * Displays docker image for a machine.
+   *
+   * @param machine machine name
+   * @param image docker image
+   */
   void setMachineImage(String machine, String image);
 
-  void setMachinePullingProgress(String machine, int percents);
+  /**
+   * Updates state of machine pulling progress.
+   *
+   * @param machine machine name
+   * @param percents how much of the image has been already downloaded
+   */
+  void onPullingProgress(String machine, int percents);
 
-//  void setMachinePullingProgress(String machine, String value);
+  /**
+   * Sets pulling complete for machine.
+   *
+   * @param machine machine name
+   */
+  void onPullingComplete(String machine);
 
-  void setMachinePullingComplete(String machine);
+  /** Switches to step 2. Displays `Starting workspace runtimes` section. */
+  void startWorkspaceMachines();
 
-  /** Step 2. Starting workspace runtimes. */
-  void showStartingWorkspaceRuntimes();
+  /**
+   * Starts a workspace machine with a docker image.
+   *
+   * @param machine machine name
+   * @param image docker image
+   */
+  void startWorkspaceMachine(String machine, String image);
 
-  void addStartWorkspaceRuntime(String machine, String image);
-
-  void setStartWorkspaceRuntimeRunning(String machine);
+  /**
+   * Displays machine in running state.
+   *
+   * @param machine machine name
+   */
+  void onMachineRunning(String machine);
 
   /** Step 3. Initializing workspace agents. */
   void showInitializingWorkspaceAgents();
 
   /** Step 4. Workspace started. */
-  void showWorkspaceStarted();
+  void onWorkspaceStarted();
 }
