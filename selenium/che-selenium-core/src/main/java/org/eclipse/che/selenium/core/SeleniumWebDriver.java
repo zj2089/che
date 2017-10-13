@@ -20,6 +20,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
@@ -251,8 +252,9 @@ public class SeleniumWebDriver
     switch (browser) {
       case GOOGLE_CHROME:
         ChromeOptions options = new ChromeOptions();
-        options.addArguments("--no-sandbox");
-        options.addArguments("--dns-prefetch-disable");
+        options.addArguments(Arrays.asList("--no-sandbox","--dns-prefetch-disable"));
+//        options.addArguments("--no-sandbox");
+//        options.addArguments("--dns-prefetch-disable");
 
         capability = DesiredCapabilities.chrome();
         capability.setCapability(ChromeOptions.CAPABILITY, options);

@@ -13,8 +13,6 @@ package org.eclipse.che.selenium.core.action;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.interactions.SendKeysAction;
-import org.openqa.selenium.internal.Locatable;
 
 /**
  * Abstract class for platform based actions. Generify the interface for using selenium action
@@ -30,8 +28,7 @@ public abstract class PlatformBasedActions extends Actions {
 
   @Override
   public Actions sendKeys(WebElement element, CharSequence... keysToSend) {
-    action.addAction(
-        new SendKeysAction(keyboard, mouse, (Locatable) element, modifyCharSequence(keysToSend)));
+    sendKeys(element, modifyCharSequence(keysToSend));
     return this;
   }
 

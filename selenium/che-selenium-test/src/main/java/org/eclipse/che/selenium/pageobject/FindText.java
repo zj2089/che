@@ -12,10 +12,10 @@ package org.eclipse.che.selenium.pageobject;
 
 import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.REDRAW_UI_ELEMENTS_TIMEOUT_SEC;
 
-import com.google.common.base.Predicate;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
+import java.util.function.Function;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.action.ActionsFactory;
 import org.openqa.selenium.By;
@@ -398,8 +398,8 @@ public class FindText {
   public void waitExpectedTextInFindInfoPanel(List<String> expText) {
     new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(
-            (Predicate<WebDriver>)
-                input ->
+            (Function<WebDriver, Object>)
+                webDriver ->
                     expText
                         .stream()
                         .allMatch(
