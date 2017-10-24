@@ -62,6 +62,9 @@ public class LocalDockerModule extends AbstractModule {
     strategies
         .addBinding("custom")
         .to(org.eclipse.che.plugin.docker.machine.CustomServerEvaluationStrategy.class);
+    strategies
+        .addBinding("newcustom")
+        .to(org.eclipse.che.plugin.docker.machine.NewCustomServerEvaluationStrategy.class);
 
     bind(org.eclipse.che.plugin.docker.machine.node.WorkspaceFolderPathProvider.class)
         .to(
