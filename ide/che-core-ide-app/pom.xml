@@ -382,6 +382,7 @@
                                 <dep>org.eclipse.che.core:che-core-api-user-shared</dep>
                                 <dep>org.eclipse.che.core:che-core-api-project-templates-shared</dep>
                                 <dep>org.eclipse.che.core:che-core-api-debug-shared</dep>
+                                <dep>org.fusesource.jansi:jansi</dep>
                             </ignoredUnusedDeclaredDependencies>
                         </configuration>
                     </execution>

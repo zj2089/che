@@ -41,12 +41,15 @@ import com.google.gwt.user.client.ui.Label;
 import com.google.gwt.user.client.ui.ScrollPanel;
 import com.google.gwt.user.client.ui.Widget;
 import com.google.inject.Inject;
+import java.io.ByteArrayOutputStream;
 import java.util.List;
 import org.eclipse.che.ide.CoreLocalizationConstant;
 import org.eclipse.che.ide.FontAwesome;
+import org.eclipse.che.ide.console.jansi.HtmlAnsiOutputStream;
 import org.eclipse.che.ide.machine.MachineResources;
 import org.eclipse.che.ide.ui.Tooltip;
 import org.eclipse.che.ide.util.Pair;
+import org.eclipse.che.ide.util.loging.Log;
 import org.vectomatic.dom.svg.ui.SVGImage;
 
 /**
@@ -335,12 +338,25 @@ public class OutputConsoleViewImpl extends Composite implements OutputConsoleVie
         new SafeHtml() {
           @Override
           public String asString() {
+            String coloredText;
+            try {
+              ByteArrayOutputStream os = new ByteArrayOutputStream();
+              // BufferedOutputStream bos = new BufferedOutputStream(os);
+              HtmlAnsiOutputStream html = new HtmlAnsiOutputStream(os);
+              html.write(text.getBytes());
+              html.close();
+              coloredText = new String(os.toByteArray());
+              Log.info(getClass(), "in:" + text + " out:" + coloredText);
+            } catch (Exception e) {
+              coloredText = e.getLocalizedMessage();
+              Log.error(getClass(), coloredText);
+            }
 
-            if (Strings.isNullOrEmpty(text)) {
+            if (Strings.isNullOrEmpty(coloredText)) {
               return " ";
             }
 
-            String encoded = SafeHtmlUtils.htmlEscape(text);
+            String encoded = SafeHtmlUtils.htmlEscape(coloredText);
             if (delegate != null) {
               if (delegate.getCustomizer() != null) {
                 if (delegate.getCustomizer().canCustomize(encoded)) {
