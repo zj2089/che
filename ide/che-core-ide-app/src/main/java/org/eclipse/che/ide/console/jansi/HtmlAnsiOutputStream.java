@@ -1,31 +1,20 @@
-/*
- * Copyright (c) 2012-2017 Red Hat, Inc.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+/**
+ * Copyright (C) 2009, Progress Software Corporation and/or its subsidiaries or affiliates. All
+ * rights reserved.
  *
- * Contributors:
- *   Red Hat, Inc. - initial API and implementation
+ * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
+ *
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * <p>Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package org.eclipse.che.ide.console.jansi;
 
-/*
- * Copyright (C) 2009-2017 the original author(s).
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -36,13 +25,15 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
 
   private boolean concealOn = false;
 
+  private ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
   @Override
   public void close() throws IOException {
     closeAttributes();
     super.close();
   }
 
-  private static final String[] ANSI_COLOR_MAP = {
+  private static final String ANSI_COLOR_MAP[] = {
     "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
   };
 
@@ -55,7 +46,7 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
     super(os);
   }
 
-  private final List<String> closingAttributes = new ArrayList<String>();
+  private List<String> closingAttributes = new ArrayList<>();
 
   private void write(String s) throws IOException {
     super.out.write(s.getBytes());
@@ -64,9 +55,11 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
   private void writeAttribute(String s) throws IOException {
     write("<" + s + ">");
     closingAttributes.add(0, s.split(" ", 2)[0]);
+    System.out.println("Open = "+s);
   }
 
   private void closeAttributes() throws IOException {
+    System.out.println("Close = "+closingAttributes.size());
     for (String attr : closingAttributes) {
       write("</" + attr + ">");
     }
@@ -74,6 +67,7 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
   }
 
   public void write(int data) throws IOException {
+    //buffer.write(data);
     switch (data) {
       case 34: // "
         out.write(BYTES_QUOT);
@@ -118,9 +112,7 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
         break;
       case ATTRIBUTE_NEGATIVE_ON:
         break;
-      case ATTRIBUTE_NEGATIVE_OFF:
-        break;
-      default:
+      case ATTRIBUTE_NEGATIVE_Off:
         break;
     }
   }
@@ -135,12 +127,12 @@ public class HtmlAnsiOutputStream extends AnsiOutputStream {
   }
 
   @Override
-  protected void processSetForegroundColor(int color, boolean bright) throws IOException {
+  protected void processSetForegroundColor(int color) throws IOException {
     writeAttribute("span style=\"color: " + ANSI_COLOR_MAP[color] + ";\"");
   }
 
   @Override
-  protected void processSetBackgroundColor(int color, boolean bright) throws IOException {
+  protected void processSetBackgroundColor(int color) throws IOException {
     writeAttribute("span style=\"background-color: " + ANSI_COLOR_MAP[color] + ";\"");
   }
 }

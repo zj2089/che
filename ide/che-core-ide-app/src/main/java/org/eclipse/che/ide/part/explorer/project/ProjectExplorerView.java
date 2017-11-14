@@ -13,7 +13,7 @@ package org.eclipse.che.ide.part.explorer.project;
 import java.util.List;
 import org.eclipse.che.ide.api.mvp.View;
 import org.eclipse.che.ide.api.parts.base.BaseActionDelegate;
-import org.eclipse.che.ide.ui.smartTree.Tree;
+import org.eclipse.che.ide.ui.smartTree .Tree;
 import org.eclipse.che.ide.ui.smartTree.data.Node;
 
 /**
