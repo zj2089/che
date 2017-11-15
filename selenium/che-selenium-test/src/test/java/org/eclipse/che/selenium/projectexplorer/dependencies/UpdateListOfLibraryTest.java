@@ -93,6 +93,8 @@ public class UpdateListOfLibraryTest {
     loader.waitOnClosed();
     projectExplorer.waitItem(PROJECT_NAME);
     consoles.closeProcessesArea();
+    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitItemIsSelected(PROJECT_NAME);
     projectExplorer.openItemByPath(PROJECT_NAME);
     loader.waitOnClosed();
     projectExplorer.waitProjectExplorer();
@@ -102,14 +104,14 @@ public class UpdateListOfLibraryTest {
     mavenPluginStatusBar.waitClosingInfoPanel();
     checkLibraries();
 
-    loader.waitOnClosed();
     projectExplorer.openItemByPath(PROJECT_NAME + "/pom.xml");
-    loader.waitOnClosed();
     editor.waitActiveEditor();
-
     addNewDependency();
 
     mavenPluginStatusBar.waitClosingInfoPanel();
+    projectExplorer.waitProjectExplorer();
+    projectExplorer.selectItem(PROJECT_NAME);
+    projectExplorer.waitItemIsSelected(PROJECT_NAME);
     projectExplorer.selectItem(PROJECT_NAME);
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT_NAME);
     projectExplorer.waitContextMenu();
@@ -175,6 +177,7 @@ public class UpdateListOfLibraryTest {
   }
 
   private void checkLibraries() {
+    projectExplorer.waitVisibleItem(LIB_FOLDER);
     projectExplorer.openItemByVisibleNameInExplorer(LIB_FOLDER);
     LIST_OF_LIBRARY.forEach(projectExplorer::waitLibraryIsPresent);
   }

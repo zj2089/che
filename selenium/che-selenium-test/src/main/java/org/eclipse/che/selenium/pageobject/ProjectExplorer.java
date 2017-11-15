@@ -356,10 +356,11 @@ public class ProjectExplorer {
    * @param path full path to project item
    */
   public void selectItem(String path) {
-    String locator = "//div[@path='/" + path + "']/div";
     waitItem(path);
-    WebElement item = seleniumWebDriver.findElement(By.xpath(locator));
-    item.click();
+    String locator = "//div[@path='/" + path + "']/div/div";
+    new WebDriverWait(seleniumWebDriver, EXPECTED_MESS_IN_CONSOLE_SEC)
+        .until(ExpectedConditions.elementToBeClickable(By.xpath(locator)))
+        .click();
   }
 
   /**
@@ -433,10 +434,12 @@ public class ProjectExplorer {
    */
   public void openItemByPath(String path) {
     waitItem(path);
+    selectItem(path);
+    waitItemIsSelected(path);
     String locator = "//div[@path='/%s']/div";
     WebElement item =
         redrawUiElementsWait.until(
-            ExpectedConditions.visibilityOfElementLocated(By.xpath(String.format(locator, path))));
+            ExpectedConditions.elementToBeClickable(By.xpath(String.format(locator, path))));
     try {
 
       item.click();
