@@ -56,6 +56,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.IAnnotationTransformer;
 import org.testng.IConfigurationListener;
 import org.testng.IInvokedMethod;
 import org.testng.IInvokedMethodListener;
@@ -76,7 +77,7 @@ import org.testng.TestException;
  * @author Dmitry Nochevnov
  */
 public abstract class SeleniumTestHandler
-    implements ITestListener, ISuiteListener, IInvokedMethodListener {
+    implements ITestListener, ISuiteListener, IInvokedMethodListener, IAnnotationTransformer {
 
   private static final Logger LOG = LoggerFactory.getLogger(SeleniumTestHandler.class);
 
