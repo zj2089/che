@@ -168,6 +168,7 @@ public class WsAgentLauncherTest {
   )
   public void shouldThrowMachineExceptionIfMachineManagerExecInDevMachineThrowsNotFoundException()
       throws Exception {
+    Mockito.when(
             machineProcessManager.exec(anyString(), anyString(), any(Command.class), anyString()))
         .thenThrow(new NotFoundException("Test exception"));
 
