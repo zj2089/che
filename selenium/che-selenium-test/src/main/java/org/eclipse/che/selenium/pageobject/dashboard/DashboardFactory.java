@@ -40,7 +40,8 @@ public class DashboardFactory {
     WORKSPACES("Workspace"),
     CONFIG_FILE("Config File"),
     TEMPLATE("Template");
-    private String type;
+
+    private final String type;
 
     SourcesTypes(String type) {
       this.type = type;
@@ -179,13 +180,13 @@ public class DashboardFactory {
    * @param wsNama
    */
   public void selectWorkspaceForCreation(String wsNama) {
-    //delay for animation page
+    // delay for animation page
     WaitUtils.sleepQuietly(1, TimeUnit.SECONDS);
     String locator = String.format(Locators.WORKSPACE_ITEM_XPATH, wsNama);
     new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
         .until(ExpectedConditions.visibilityOfElementLocated(By.xpath(locator)))
         .click();
-    //delay for redraw and setting selection
+    // delay for redraw and setting selection
     WaitUtils.sleepQuietly(1, TimeUnit.SECONDS);
   }
 
@@ -209,11 +210,11 @@ public class DashboardFactory {
   }
 
   /**
-   * wait the name of factory field and type the name
+   * wait on the factory name field visibility and enter the name
    *
-   * @param name
+   * @param name name of factory to enter
    */
-  public void setNameFactory(String name) {
+  public void setFactoryName(String name) {
     WebElement field =
         new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
             .until(ExpectedConditions.visibilityOf(factoryNameField));

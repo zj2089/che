@@ -79,12 +79,12 @@ public class EditorMultiPartStackPresenter
   @Override
   public void addPart(@NotNull PartPresenter part) {
     if (activeEditorPartStack != null) {
-      //open the part in the active editorPartStack
+      // open the part in the active editorPartStack
       activeEditorPartStack.addPart(part);
       return;
     }
 
-    //open the part in the new editorPartStack
+    // open the part in the new editorPartStack
     addEditorPartStack(part, null, null, -1);
   }
 
@@ -98,7 +98,8 @@ public class EditorMultiPartStackPresenter
 
     EditorPartStack relativePartStack = getPartStackByTabId(constraint.relativeId);
     if (relativePartStack != null) {
-      //view of relativePartStack will be split corresponding to constraint on two areas and part will be added into created area
+      // view of relativePartStack will be split corresponding to constraint on two areas and part
+      // will be added into created area
       addEditorPartStack(part, relativePartStack, constraint, -1);
     }
   }
@@ -186,10 +187,13 @@ public class EditorMultiPartStackPresenter
     }
   }
 
-  private void removePartStack(EditorPartStack editorPartStack) {
+  @Override
+  public void removePartStack(EditorPartStack editorPartStack) {
     if (activeEditorPartStack == editorPartStack) {
       activeEditorPartStack = null;
     }
+
+    editorPartStack.getParts().forEach(editorPartStack::removePart);
 
     view.removePartStack(editorPartStack);
     partStackPresenters.remove(editorPartStack);
@@ -239,7 +243,7 @@ public class EditorMultiPartStackPresenter
   }
 
   @Nullable
-  private EditorPartStack getPartStackByTabId(@NotNull String tabId) {
+  public EditorPartStack getPartStackByTabId(@NotNull String tabId) {
     for (EditorPartStack editorPartStack : partStackPresenters) {
       PartPresenter editorPart = editorPartStack.getPartByTabId(tabId);
       if (editorPart != null) {

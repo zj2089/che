@@ -10,14 +10,15 @@
  */
 package org.eclipse.che.selenium.debugger;
 
+import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.base.Splitter;
 import com.google.inject.Inject;
 import java.net.URL;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.client.TestCommandServiceClient;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
@@ -107,9 +108,6 @@ public class ChangeVariableWithEvaluatingTest {
   @AfterMethod
   public void shutDownTomCatAndCleanWebApp() throws Exception {
     debugPanel.stopDebuggerWithUiAndCleanUpTomcat(CLEAN_TOMCAT_COMMAND_NAME);
-    testCommandServiceClient.deleteCommand(START_DEBUG_COMMAND_NAME, ws.getId());
-    testCommandServiceClient.deleteCommand(CLEAN_TOMCAT_COMMAND_NAME, ws.getId());
-    testCommandServiceClient.deleteCommand(BUILD_COMMAND_NAME, ws.getId());
   }
 
   @Test
@@ -119,7 +117,7 @@ public class ChangeVariableWithEvaluatingTest {
     commandsPalette.startCommandByDoubleClick(START_DEBUG_COMMAND_NAME);
     consoles.waitExpectedTextIntoConsole(" Server startup in");
     editor.setCursorToLine(34);
-    editor.setBreakPointAndWaitInactiveState(34);
+    editor.setInactiveBreakpoint(34);
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.EDIT_DEBUG_CONFIGURATION);
@@ -133,18 +131,20 @@ public class ChangeVariableWithEvaluatingTest {
             + "://"
             + workspaceServiceClient.getServerAddressByPort(ws.getId(), 8080)
             + "/spring/guess";
-    String requestMess = "11";
-    editor.waitBreakPointWithActiveState(34);
+    String requestMess = "numGuess=11&submit=Ok";
+    editor.waitActiveBreakpoint(34);
     CompletableFuture<String> instToRequestThread =
-        debuggerUtils.gotoDebugAppAndSendRequest(appUrl, requestMess);
+        debuggerUtils.gotoDebugAppAndSendRequest(
+            appUrl, requestMess, APPLICATION_FORM_URLENCODED, 200);
+    debugPanel.openDebugPanel();
     debugPanel.waitDebugHighlightedText("result = \"Sorry, you failed. Try again later!\";");
     debugPanel.waitVariablesPanel();
-    debugPanel.selectVarInVariablePanel("numGuessByUser: \"11\"");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.CHANGE_VARIABLE);
+    debugPanel.selectNodeInDebuggerTree("numGuessByUser=\"11\"");
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.CHANGE_DEBUG_TREE_NODE);
     String secretNum = getValueOfSecretNumFromVarWidget().trim();
-    debugPanel.typeAndChangeVariable(secretNum);
-    debugPanel.selectVarInVariablePanel(String.format("numGuessByUser: %s", secretNum));
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.EVALUATE_EXPRESSIONS);
+    debugPanel.typeAndSaveTextAreaDialog(secretNum);
+    debugPanel.selectNodeInDebuggerTree(String.format("numGuessByUser=%s", secretNum));
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.EVALUATE_EXPRESSIONS);
     debugPanel.typeEvaluateExpression("numGuessByUser.length()");
     debugPanel.clickEvaluateBtn();
     debugPanel.waitExpectedResultInEvaluateExpression("1");
@@ -152,7 +152,7 @@ public class ChangeVariableWithEvaluatingTest {
     debugPanel.clickEvaluateBtn();
     debugPanel.waitExpectedResultInEvaluateExpression("false");
     debugPanel.clickCloseEvaluateBtn();
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
     assertTrue(instToRequestThread.get().contains("Sorry, you failed. Try again later!"));
   }
 
@@ -168,8 +168,8 @@ public class ChangeVariableWithEvaluatingTest {
   }
 
   private String getValueOfSecretNumFromVarWidget() {
-    Map<String, String> values =
-        Splitter.on("\n").withKeyValueSeparator(":").split(debugPanel.getTextFromVariablePanel());
-    return values.get("secretNum");
+    Pattern compile = Pattern.compile("secretNum=(.*)(\n)?");
+    Matcher matcher = compile.matcher(debugPanel.getVariables());
+    return matcher.find() ? matcher.group(1) : null;
   }
 }

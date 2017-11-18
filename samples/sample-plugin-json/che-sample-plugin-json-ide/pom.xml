@@ -16,7 +16,7 @@
     <parent>
         <artifactId>che-sample-plugin-json-parent</artifactId>
         <groupId>org.eclipse.che.sample</groupId>
-        <version>5.18.0-SNAPSHOT</version>
+        <version>5.21.0-SNAPSHOT</version>
     </parent>
     <artifactId>che-sample-plugin-json-ide</artifactId>
     <packaging>jar</packaging>
@@ -82,11 +82,11 @@
             </resource>
         </resources>
         <plugins>
-            <!-- compiler inlines constants, so it is impossible to find reference on dependency -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
+                    <!-- compiler inlines constants, so it is impossible to find reference on dependency -->
                     <execution>
                         <id>analyze</id>
                         <configuration>

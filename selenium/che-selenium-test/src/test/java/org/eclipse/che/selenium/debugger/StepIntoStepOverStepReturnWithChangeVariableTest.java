@@ -10,6 +10,7 @@
  */
 package org.eclipse.che.selenium.debugger;
 
+import static javax.ws.rs.core.MediaType.APPLICATION_FORM_URLENCODED;
 import static org.testng.Assert.assertTrue;
 
 import com.google.inject.Inject;
@@ -111,7 +112,7 @@ public class StepIntoStepOverStepReturnWithChangeVariableTest {
     commandsPalette.startCommandByDoubleClick(START_DEBUG);
     consoles.waitExpectedTextIntoConsole(" Server startup in");
     editor.setCursorToLine(34);
-    editor.setBreakPointAndWaitInactiveState(34);
+    editor.setInactiveBreakpoint(34);
     menu.runCommand(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.EDIT_DEBUG_CONFIGURATION);
@@ -120,31 +121,32 @@ public class StepIntoStepOverStepReturnWithChangeVariableTest {
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         TestMenuCommandsConstants.Run.DEBUG + "/" + PROJECT);
-    editor.waitBreakPointWithActiveState(34);
+    editor.waitActiveBreakpoint(34);
     String appUrl =
         "http"
             + "://"
             + workspaceServiceClient.getServerAddressByPort(ws.getId(), 8080)
             + "/spring/guess";
-    String requestMess = "6";
+    String requestMess = "numGuess=6&submit=Ok";
     CompletableFuture<String> instToRequestThread =
-        debugUtils.gotoDebugAppAndSendRequest(appUrl, requestMess);
-    editor.waitBreakPointWithActiveState(34);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OVER);
+        debugUtils.gotoDebugAppAndSendRequest(
+            appUrl, requestMess, APPLICATION_FORM_URLENCODED, 200);
+    editor.waitActiveBreakpoint(34);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
     debugPanel.waitDebugHighlightedText("AdditonalClass.check();");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_INTO);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
     editor.waitTabFileWithSavedStatus("AdditonalClass");
     debugPanel.waitDebugHighlightedText(" someStr.toLowerCase();");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OVER);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
     debugPanel.waitDebugHighlightedText("Operation.valueOf(\"SUBTRACT\").toString();");
-    debugPanel.waitTextInVariablesPanel("someStr: \"hello Cdenvy\"");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OUT);
-    debugPanel.waitTextInVariablesPanel("secretNum:");
-    debugPanel.selectVarInVariablePanel("numGuessByUser: \"6\"");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.CHANGE_VARIABLE);
-    debugPanel.typeAndChangeVariable("\"7\"");
-    debugPanel.waitTextInVariablesPanel("numGuessByUser: \"7\"");
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.waitTextInVariablesPanel("someStr=\"hello Cdenvy\"");
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
+    debugPanel.waitTextInVariablesPanel("secretNum=");
+    debugPanel.selectNodeInDebuggerTree("numGuessByUser=\"6\"");
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.CHANGE_DEBUG_TREE_NODE);
+    debugPanel.typeAndSaveTextAreaDialog("\"7\"");
+    debugPanel.waitTextInVariablesPanel("numGuessByUser=\"7\"");
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
     assertTrue(instToRequestThread.get().contains("<html>"));
   }
 
@@ -154,12 +156,12 @@ public class StepIntoStepOverStepReturnWithChangeVariableTest {
     commandsPalette.openCommandPalette();
     commandsPalette.startCommandByDoubleClick(START_DEBUG);
     consoles.waitExpectedTextIntoConsole(" Server startup in");
-    editor.setBreakPointAndWaitInactiveState(26);
+    editor.setInactiveBreakpoint(26);
     seleniumWebDriver
         .switchTo()
         .activeElement()
         .sendKeys(Keys.SHIFT.toString() + Keys.F9.toString());
-    editor.waitBreakPointWithActiveState(26);
+    editor.waitActiveBreakpoint(26);
   }
 
   private void buildProjectAndOpenMainClass() {

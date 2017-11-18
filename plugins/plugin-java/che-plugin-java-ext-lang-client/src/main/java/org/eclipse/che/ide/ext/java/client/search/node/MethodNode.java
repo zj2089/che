@@ -28,6 +28,7 @@ import org.eclipse.che.ide.ext.java.shared.dto.model.ClassFile;
 import org.eclipse.che.ide.ext.java.shared.dto.model.CompilationUnit;
 import org.eclipse.che.ide.ext.java.shared.dto.model.Method;
 import org.eclipse.che.ide.ext.java.shared.dto.search.Match;
+import org.eclipse.che.ide.ui.smartTree.presentation.AbstractPresentationNode;
 import org.eclipse.che.ide.ui.smartTree.presentation.NodePresentation;
 import org.vectomatic.dom.svg.ui.SVGResource;
 
@@ -85,7 +86,7 @@ public class MethodNode extends AbstractPresentationNode {
 
   @Override
   public void updatePresentation(@NotNull NodePresentation presentation) {
-    //TODO set proper icon
+    // TODO set proper icon
     presentation.setPresentableText(method.getLabel());
     int flags = method.getFlags();
     SVGResource icon;

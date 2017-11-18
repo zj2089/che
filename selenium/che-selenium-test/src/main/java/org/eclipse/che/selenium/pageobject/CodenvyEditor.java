@@ -59,6 +59,7 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 public class CodenvyEditor {
 
   public static final String CLOSE_ALL_TABS = "gwt-debug-contextMenu/closeAllEditors";
+  public static final String VCS_RULER = "//div[@class='ruler vcs']/div";
 
   public static final class EditorContextMenu {
     public static final String REFACTORING = "contextMenu/Refactoring";
@@ -146,6 +147,8 @@ public class CodenvyEditor {
     public static final String ACTIVE_TAB_FILE_NAME = "//div[@active]/descendant::div[text()='%s']";
     public static final String TAB_FILE_NAME_XPATH =
         "//div[@id='gwt-debug-editorPartStack-tabsPanel']//div[text()='%s']";
+    public static final String TAB_FILE_NAME_AND_STYLE =
+        "//div[@id='gwt-debug-editorPartStack-tabsPanel']//div[text()='%s' and @style='%s']";
     public static final String TAB_FILE_CLOSE_ICON =
         "//div[@id='gwt-debug-editorPartStack-tabsPanel']//div[text()='%s']/following::div[1]";
     public static final String ALL_TABS_XPATH =
@@ -189,6 +192,8 @@ public class CodenvyEditor {
         "//div[@class='breakpoint inactive' and text()='%d']";
     public static final String DEBUGGER_BREAK_POINT_ACTIVE =
         "//div[@class='breakpoint active' and text()='%d']";
+    public static final String DEBUGGER_BREAKPOINT_CONDITION =
+        "//div[@class='breakpoint %s condition' and text()='%d']";
     public static final String JAVA_DOC_POPUP = "//div[@class='gwt-PopupPanel']//iframe";
     public static final String AUTOCOMPLETE_PROPOSAL_JAVA_DOC_POPUP =
         "//div//iframe[contains(@src, 'api/java/code-assist/compute/info?')]";
@@ -204,7 +209,7 @@ public class CodenvyEditor {
     SPLIT_VERTICALLY("contextMenu/Split Pane In Two Columns"),
     SPIT_HORISONTALLY("contextMenu/Split Pane In Two Rows");
 
-    private String id;
+    private final String id;
 
     TabAction(String id) {
       this.id = id;
@@ -448,7 +453,8 @@ public class CodenvyEditor {
   }
 
   /** returns focus in the end of current line (in active tab) */
-  //TODO in some cases (for example if we do step into in debug mode and opens editor after that, focus will be lost). But this problem should be fixed. After the we can remove this method
+  // TODO in some cases (for example if we do step into in debug mode and opens editor after that,
+  // focus will be lost). But this problem should be fixed. After the we can remove this method
   public void returnFocusInCurrentLine() {
     List<WebElement> lines =
         seleniumWebDriver.findElements(By.xpath(Locators.ACTIVE_LINE_HIGHLIGHT));
@@ -569,6 +575,88 @@ public class CodenvyEditor {
         visibilityOfElementLocated(By.xpath(String.format(markerType, position))));
     setCursorToLine(position);
     expectedNumberOfActiveLine(position);
+  }
+
+  /** Wait for no Git change markers in the opened editor. */
+  public void waitNoGitChangeMarkers() {
+
+    List<WebElement> rulerVcsElements = seleniumWebDriver.findElements(By.xpath(VCS_RULER));
+
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                webDriver ->
+                    rulerVcsElements
+                        .stream()
+                        .allMatch(element -> "".equals(element.getAttribute("class"))));
+  }
+
+  /**
+   * Wait for Git insertion marker in the opened editor.
+   *
+   * @param startLine line number of the markers start
+   * @param endLine line number of the markers end
+   */
+  public void waitGitInsertionMarkerInPosition(int startLine, int endLine) {
+
+    List<WebElement> rulerVcsElements =
+        seleniumWebDriver.findElements(By.xpath("//div[@class='ruler vcs']/div"));
+
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                webDriver -> {
+                  for (int i = startLine; i <= endLine; i++) {
+                    if (!"git-change-marker insertion"
+                        .equals(rulerVcsElements.get(i).getAttribute("class"))) {
+                      return false;
+                    }
+                  }
+                  return true;
+                });
+  }
+
+  /**
+   * Wait for Git modification marker in the opened editor.
+   *
+   * @param startLine line number of the markers start
+   * @param endLine line number of the markers end
+   */
+  public void waitGitModificationMarkerInPosition(int startLine, int endLine) {
+
+    List<WebElement> rulerVcsElements =
+        seleniumWebDriver.findElements(By.xpath("//div[@class='ruler vcs']/div"));
+
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                webDriver -> {
+                  for (int i = startLine; i <= endLine; i++) {
+                    if (!"git-change-marker modification"
+                        .equals(rulerVcsElements.get(i).getAttribute("class"))) {
+                      return false;
+                    }
+                  }
+                  return true;
+                });
+  }
+
+  /**
+   * Wait for Git deletion marker in the opened editor.
+   *
+   * @param line line number of the marker
+   */
+  public void waitGitDeletionMarkerInPosition(int line) {
+
+    List<WebElement> rulerVcsElements =
+        seleniumWebDriver.findElements(By.xpath("//div[@class='ruler vcs']/div"));
+
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            (ExpectedCondition<Boolean>)
+                webDriver ->
+                    "git-change-marker deletion"
+                        .equals(rulerVcsElements.get(line).getAttribute("class")));
   }
 
   /**
@@ -905,6 +993,44 @@ public class CodenvyEditor {
         .click();
   }
 
+  public void waitYellowTab(String fileName) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            ExpectedConditions.visibilityOfElementLocated(
+                By.xpath(
+                    String.format(
+                        Locators.TAB_FILE_NAME_AND_STYLE, fileName, "color: rgb(224, 185, 29);"))));
+  }
+
+  public void waitGreenTab(String fileName) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            ExpectedConditions.visibilityOfElementLocated(
+                By.xpath(
+                    String.format(
+                        Locators.TAB_FILE_NAME_AND_STYLE, fileName, "color: rgb(114, 173, 66);"))));
+  }
+
+  public void waitBlueTab(String fileName) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            ExpectedConditions.visibilityOfElementLocated(
+                By.xpath(
+                    String.format(
+                        Locators.TAB_FILE_NAME_AND_STYLE, fileName, "color: rgb(49, 147, 212);"))));
+  }
+
+  public void waitDefaultColorTab(String fileName) {
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+        .until(
+            ExpectedConditions.visibilityOfElementLocated(
+                By.xpath(
+                    String.format(
+                        Locators.TAB_FILE_NAME_AND_STYLE,
+                        fileName,
+                        "color: rgb(255, 255, 255);"))));
+  }
+
   /**
    * wait tab with expected name is not present
    *
@@ -942,7 +1068,7 @@ public class CodenvyEditor {
     loader.waitOnClosed();
   }
 
-  //TODO this will be able to after adding feature 'Go to line' and 'Delete line'
+  // TODO this will be able to after adding feature 'Go to line' and 'Delete line'
   public void selectLineAndDelete(int numberOfLine) {
     Actions action = actionsFactory.createAction(seleniumWebDriver);
     setCursorToLine(numberOfLine);
@@ -954,7 +1080,7 @@ public class CodenvyEditor {
     loader.waitOnClosed();
   }
 
-  //TODO this will be able to after adding feature 'Go to line' and 'Delete line'
+  // TODO this will be able to after adding feature 'Go to line' and 'Delete line'
   public void selectLineAndDelete() {
     Actions action = actionsFactory.createAction(seleniumWebDriver);
     typeTextIntoEditor(Keys.HOME.toString());
@@ -1016,7 +1142,7 @@ public class CodenvyEditor {
    *
    * @param position position of the breakpoint
    */
-  public void setBreakPointAndWaitInactiveState(int position) {
+  public void setInactiveBreakpoint(int position) {
     waitActiveEditor();
     waitDebugerLineIsVisible(position);
     seleniumWebDriver
@@ -1037,7 +1163,15 @@ public class CodenvyEditor {
     seleniumWebDriver
         .findElement(By.xpath(String.format(Locators.DEBUGGER_PREFIX_XPATH, position)))
         .click();
-    waitBreakPointWithActiveState(position);
+    waitActiveBreakpoint(position);
+  }
+
+  public void setBreakpoint(int position) {
+    waitActiveEditor();
+    waitDebugerLineIsVisible(position);
+    seleniumWebDriver
+        .findElement(By.xpath(String.format(Locators.DEBUGGER_PREFIX_XPATH, position)))
+        .click();
   }
 
   /**
@@ -1045,10 +1179,26 @@ public class CodenvyEditor {
    *
    * @param position the position in the codenvy - editor
    */
-  public void waitBreakPointWithActiveState(int position) {
+  public void waitActiveBreakpoint(int position) {
     redrawDriverWait.until(
         visibilityOfElementLocated(
             By.xpath(String.format(Locators.DEBUGGER_BREAK_POINT_ACTIVE, position))));
+  }
+
+  public void waitInactiveBreakpoint(int position) {
+    redrawDriverWait.until(
+        visibilityOfElementLocated(
+            By.xpath(String.format(Locators.DEBUGGER_BREAK_POINT_INACTIVE, position))));
+  }
+
+  public void waitConditionalBreakpoint(int lineNumber, boolean active) {
+    redrawDriverWait.until(
+        visibilityOfElementLocated(
+            By.xpath(
+                String.format(
+                    Locators.DEBUGGER_BREAKPOINT_CONDITION,
+                    active ? "active" : "inactive",
+                    lineNumber))));
   }
 
   /** wait while editor will be empty */
@@ -1539,7 +1689,8 @@ public class CodenvyEditor {
       }
       stringBuilder.deleteCharAt(stringBuilder.length() - 1);
     }
-    // If an editor do not attached to the DOM (we will have state element exception). We wait attaching 2 second and try to read text again.
+    // If an editor do not attached to the DOM (we will have state element exception). We wait
+    // attaching 2 second and try to read text again.
     catch (WebDriverException ex) {
       WaitUtils.sleepQuietly(2);
       stringBuilder.setLength(0);

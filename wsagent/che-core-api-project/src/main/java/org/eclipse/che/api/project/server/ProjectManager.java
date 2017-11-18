@@ -37,10 +37,10 @@ import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.UnauthorizedException;
 import org.eclipse.che.api.core.model.project.NewProjectConfig;
 import org.eclipse.che.api.core.model.project.ProjectConfig;
+import org.eclipse.che.api.core.model.project.ProjectProblem;
 import org.eclipse.che.api.core.model.project.SourceStorage;
 import org.eclipse.che.api.core.model.project.type.ProjectType;
 import org.eclipse.che.api.core.util.LineConsumerFactory;
-import org.eclipse.che.api.project.server.RegisteredProject.Problem;
 import org.eclipse.che.api.project.server.handlers.CreateProjectHandler;
 import org.eclipse.che.api.project.server.handlers.ProjectHandlerRegistry;
 import org.eclipse.che.api.project.server.importer.ProjectImporter;
@@ -55,12 +55,12 @@ import org.eclipse.che.api.vfs.Path;
 import org.eclipse.che.api.vfs.VirtualFile;
 import org.eclipse.che.api.vfs.VirtualFileSystem;
 import org.eclipse.che.api.vfs.VirtualFileSystemProvider;
-import org.eclipse.che.api.vfs.impl.file.FileTreeWatcher;
 import org.eclipse.che.api.vfs.impl.file.FileWatcherNotificationHandler;
 import org.eclipse.che.api.vfs.impl.file.FileWatcherNotificationListener;
 import org.eclipse.che.api.vfs.search.Searcher;
 import org.eclipse.che.api.vfs.search.SearcherProvider;
 import org.eclipse.che.api.vfs.watcher.FileWatcherManager;
+import org.eclipse.che.api.workspace.shared.ProjectProblemImpl;
 import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +76,10 @@ public class ProjectManager {
 
   private final VirtualFileSystem vfs;
   private final ProjectTypeRegistry projectTypeRegistry;
+  private final WorkspaceSyncCommunication workspaceSyncCommunication;
   private final ProjectRegistry projectRegistry;
   private final ProjectHandlerRegistry handlers;
   private final ProjectImporterRegistry importers;
-  private final FileTreeWatcher fileWatcher;
   private final FileWatcherNotificationHandler fileWatchNotifier;
   private final ExecutorService executor;
   private final WorkspaceProjectsSyncer workspaceProjectsHolder;
@@ -91,21 +91,21 @@ public class ProjectManager {
   public ProjectManager(
       VirtualFileSystemProvider vfsProvider,
       ProjectTypeRegistry projectTypeRegistry,
+      WorkspaceSyncCommunication workspaceSyncCommunication,
       ProjectRegistry projectRegistry,
       ProjectHandlerRegistry handlers,
       ProjectImporterRegistry importers,
       FileWatcherNotificationHandler fileWatcherNotificationHandler,
-      FileTreeWatcher fileTreeWatcher,
       WorkspaceProjectsSyncer workspaceProjectsHolder,
       FileWatcherManager fileWatcherManager)
       throws ServerException {
     this.vfs = vfsProvider.getVirtualFileSystem();
     this.projectTypeRegistry = projectTypeRegistry;
+    this.workspaceSyncCommunication = workspaceSyncCommunication;
     this.projectRegistry = projectRegistry;
     this.handlers = handlers;
     this.importers = importers;
     this.fileWatchNotifier = fileWatcherNotificationHandler;
-    this.fileWatcher = fileTreeWatcher;
     this.workspaceProjectsHolder = workspaceProjectsHolder;
     this.fileWatcherManager = fileWatcherManager;
 
@@ -130,7 +130,7 @@ public class ProjectManager {
             projectPath -> {
               try {
                 projectRegistry.removeProjects(projectPath);
-                workspaceProjectsHolder.sync(projectRegistry);
+                workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
               } catch (ServerException e) {
                 LOG.error("Could not remove or synchronize  project: {}", projectPath);
               }
@@ -160,12 +160,6 @@ public class ProjectManager {
           }
         };
     fileWatchNotifier.addNotificationListener(defaultListener);
-    try {
-      fileWatcher.startup();
-    } catch (IOException e) {
-      LOG.error(e.getMessage(), e);
-      fileWatchNotifier.removeNotificationListener(defaultListener);
-    }
   }
 
   @PreDestroy
@@ -194,13 +188,9 @@ public class ProjectManager {
     fileWatchNotifier.removeNotificationListener(listener);
   }
 
-  public void addWatchExcludeMatcher(PathMatcher matcher) {
-    fileWatcher.addExcludeMatcher(matcher);
-  }
+  public void addWatchExcludeMatcher(PathMatcher matcher) {}
 
-  public void removeWatchExcludeMatcher(PathMatcher matcher) {
-    fileWatcher.removeExcludeMatcher(matcher);
-  }
+  public void removeWatchExcludeMatcher(PathMatcher matcher) {}
 
   /**
    * @return all the projects
@@ -292,7 +282,7 @@ public class ProjectManager {
 
     final RegisteredProject project =
         projectRegistry.putProject(projectConfig, projectFolder, true, false);
-    workspaceProjectsHolder.sync(projectRegistry);
+    workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
     projectRegistry.fireInitHandlers(project);
 
     return project;
@@ -308,9 +298,9 @@ public class ProjectManager {
    *     NewProjectConfig#setPath(String)} field. In this case Project will be created as project of
    *     {@link BaseProjectType} type
    * <li>- a project will be created as project of {@link BaseProjectType} type with {@link
-   *     Problem#code} = 12 when declared primary project type is not registered,
-   * <li>- a project will be created with {@link Problem#code} = 12 and without mixin project type
-   *     when declared mixin project type is not registered
+   *     ProjectProblem#getCode()} code} = 12 when declared primary project type is not registered,
+   * <li>- a project will be created with {@link ProjectProblem#getCode()} code} = 12 and without
+   *     mixin project type when declared mixin project type is not registered
    * <li>- for creating a project by generator {@link NewProjectConfig#getOptions()} should be
    *     specified.
    *
@@ -349,7 +339,7 @@ public class ProjectManager {
         RegisteredProject registeredProject;
         final String pathToProject = projectConfig.getPath();
 
-        //creating project(by config or by importing source code)
+        // creating project(by config or by importing source code)
         try {
           final SourceStorage sourceStorage = projectConfig.getSource();
           if (sourceStorage != null && !isNullOrEmpty(sourceStorage.getLocation())) {
@@ -364,21 +354,21 @@ public class ProjectManager {
             continue;
           }
         } catch (Exception e) {
-          if (!isVirtualFileExist(pathToProject)) { //project folder is absent
+          if (!isVirtualFileExist(pathToProject)) { // project folder is absent
             rollbackCreatingBatchProjects(projects);
             throw e;
           }
         }
 
-        //update project
+        // update project
         if (isVirtualFileExist(pathToProject)) {
           try {
             registeredProject = updateProject(projectConfig);
           } catch (Exception e) {
             registeredProject =
                 projectRegistry.putProject(projectConfig, asFolder(pathToProject), true, false);
-            final Problem problem =
-                new Problem(
+            final ProjectProblem problem =
+                new ProjectProblemImpl(
                     NOT_UPDATED_PROJECT,
                     "The project is not updated, caused by " + e.getLocalizedMessage());
             registeredProject.getProblems().add(problem);
@@ -463,7 +453,7 @@ public class ProjectManager {
 
     final RegisteredProject project =
         projectRegistry.putProject(newConfig, baseFolder, true, false);
-    workspaceProjectsHolder.sync(projectRegistry);
+    workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
 
     projectRegistry.fireInitHandlers(project);
 
@@ -538,7 +528,8 @@ public class ProjectManager {
     final String name = folder.getPath().getName();
     for (ProjectConfig project : workspaceProjectsHolder.getProjects()) {
       if (normalizePath.equals(project.getPath())) {
-        // TODO Needed for factory project importing with keepDir. It needs to find more appropriate solution
+        // TODO Needed for factory project importing with keepDir. It needs to find more appropriate
+        // solution
         List<String> innerProjects = projectRegistry.getProjects(normalizePath);
         for (String innerProject : innerProjects) {
           RegisteredProject registeredProject = projectRegistry.getProject(innerProject);
@@ -546,7 +537,7 @@ public class ProjectManager {
               registeredProject, asFolder(registeredProject.getPath()), true, false);
         }
         RegisteredProject rp = projectRegistry.putProject(project, folder, true, false);
-        workspaceProjectsHolder.sync(projectRegistry);
+        workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
         return rp;
       }
     }
@@ -557,7 +548,7 @@ public class ProjectManager {
             folder,
             true,
             false);
-    workspaceProjectsHolder.sync(projectRegistry);
+    workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
     return rp;
   }
 
@@ -636,7 +627,7 @@ public class ProjectManager {
     // delete child projects
     projectRegistry.removeProjects(apath);
 
-    workspaceProjectsHolder.sync(projectRegistry);
+    workspaceProjectsHolder.sync(projectRegistry, workspaceSyncCommunication);
   }
 
   /**

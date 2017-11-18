@@ -38,7 +38,7 @@ import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.core.model.project.SourceStorage;
 import org.eclipse.che.api.factory.shared.dto.FactoryDto;
-import org.eclipse.che.api.git.shared.GitCheckoutEvent;
+import org.eclipse.che.api.git.shared.event.GitCheckoutEvent;
 import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.FunctionException;
 import org.eclipse.che.api.promises.client.Promise;
@@ -199,7 +199,8 @@ public class FactoryProjectImporter extends AbstractImporter {
             })
         .catchError(
             promiseError -> {
-              // If it is unable to import any number of projects then factory import status will be success anyway
+              // If it is unable to import any number of projects then factory import status will be
+              // success anyway
               callback.onSuccess(null);
             });
   }
@@ -217,7 +218,8 @@ public class FactoryProjectImporter extends AbstractImporter {
         notificationManager.notify(locale.cloningSource(projectName), null, PROGRESS, FLOAT_MODE);
     subscriber.subscribe(projectName, notification);
     String location = sourceStorage.getLocation();
-    // it's needed for extract repository name from repository url e.g https://github.com/codenvy/che-core.git
+    // it's needed for extract repository name from repository url e.g
+    // https://github.com/codenvy/che-core.git
     // lastIndexOf('/') + 1 for not to capture slash and length - 4 for trim .git
     final String repository = location.substring(location.lastIndexOf('/') + 1).replace(".git", "");
     final Map<String, String> parameters =

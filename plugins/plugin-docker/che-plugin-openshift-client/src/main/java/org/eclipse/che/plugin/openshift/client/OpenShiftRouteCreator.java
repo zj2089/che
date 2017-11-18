@@ -15,7 +15,9 @@ import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.api.model.RouteFluent.SpecNested;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
+import javax.inject.Inject;
 import javax.inject.Singleton;
+import org.eclipse.che.plugin.openshift.client.exception.OpenShiftException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,23 +27,27 @@ public class OpenShiftRouteCreator {
   private static final String TLS_TERMINATION_EDGE = "edge";
   private static final String REDIRECT_INSECURE_EDGE_TERMINATION_POLICY = "Redirect";
 
+  @Inject private OpenshiftWorkspaceEnvironmentProvider openshiftUserAccountProvider;
+
   public void createRoute(
       final String namespace,
       final String openShiftNamespaceExternalAddress,
+      final String cheWorkspacesRoutingSuffix,
       final String serverRef,
       final String serviceName,
       final String deploymentName,
       final String routeId,
-      final boolean enableTls) {
+      final boolean enableTls)
+      throws OpenShiftException {
 
     if (openShiftNamespaceExternalAddress == null) {
       throw new IllegalArgumentException(
           "Property che.docker.ip.external must be set when using openshift.");
     }
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(openshiftUserAccountProvider.getWorkspacesOpenshiftConfig())) {
       String routeName = generateRouteName(routeId, serverRef);
-      String serviceHost = generateRouteHost(routeName, openShiftNamespaceExternalAddress);
 
       SpecNested<DoneableRoute> routeSpec =
           openShiftClient
@@ -53,7 +59,6 @@ public class OpenShiftRouteCreator {
               .addToLabels(OpenShiftConnector.OPENSHIFT_DEPLOYMENT_LABEL, deploymentName)
               .endMetadata()
               .withNewSpec()
-              .withHost(serviceHost)
               .withNewTo()
               .withKind("Service")
               .withName(serviceName)
@@ -80,10 +85,5 @@ public class OpenShiftRouteCreator {
 
   private String generateRouteName(final String serviceName, final String serverRef) {
     return serverRef + "-" + serviceName;
-  }
-
-  private String generateRouteHost(
-      final String routeName, final String openShiftNamespaceExternalAddress) {
-    return routeName + "-" + openShiftNamespaceExternalAddress;
   }
 }

@@ -14,7 +14,7 @@ import {DashboardLastWorkspacesController} from './last-workspaces/last-workspac
 import {DashboardLastWorkspaces} from './last-workspaces/last-workspaces.directive';
 import {DashboardPanel} from './dashboard-panel/dashboard-panel.directive';
 import {CheService} from '../../components/api/che-service.factory';
-import {CheWorkspace} from '../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../components/api/workspace/che-workspace.factory';
 
 export class DashboardConfig {
 
@@ -28,7 +28,7 @@ export class DashboardConfig {
     register.directive('dashboardPanel', DashboardPanel);
 
     // config routes
-    register.app.config(($routeProvider: ng.route.IRouteProvider) => {
+    register.app.config(($routeProvider: che.route.IRouteProvider) => {
       $routeProvider.accessWhen('/', {
         title: 'Dashboard',
         templateUrl: 'app/dashboard/dashboard.html',
@@ -43,8 +43,6 @@ export class DashboardConfig {
                 $location.path('/create-workspace');
               }
             });
-
-            return cheService.fetchServices();
           }]
         }
       });

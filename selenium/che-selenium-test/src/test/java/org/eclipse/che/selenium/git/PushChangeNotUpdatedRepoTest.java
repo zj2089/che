@@ -12,14 +12,12 @@ package org.eclipse.che.selenium.git;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
@@ -50,7 +48,7 @@ public class PushChangeNotUpdatedRepoTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -70,20 +68,13 @@ public class PushChangeNotUpdatedRepoTest {
   @Inject private NotificationsPopupPanel notifications;
   @Inject private Wizard projectWizard;
   @Inject private ImportProjectFromLocation importProject;
-  @Inject private TestSshServiceClient testSshServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
-  @Inject private TestGitHubServiceClient gitHubClientService;
 
   @BeforeClass
   public void prepare() throws Exception {
-    try {
-      String publicKey = testSshServiceClient.generateGithubKey();
-      gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-    } catch (ConflictException ignored) {
-      // already generated
-    }
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
-
     ide.open(ws);
   }
 
@@ -133,7 +124,7 @@ public class PushChangeNotUpdatedRepoTest {
     // check conflict, pull
     projectExplorer.openItemByPath(PROJECT_2);
 
-    //change one file in second project
+    // change one file in second project
     projectExplorer.openItemByPath(PROJECT_2 + "/" + FILE_FOR_CHANGED_2);
     projectExplorer.waitItem(PROJECT_2 + "/" + FILE_FOR_CHANGED_2);
     editor.waitActiveEditor();
@@ -145,7 +136,7 @@ public class PushChangeNotUpdatedRepoTest {
     editor.closeFileByNameWithSaving(FILE_FOR_CHANGED_2);
     addToIndexAndCommitAll(COMMIT_MESSAGE_2, PROJECT_2);
 
-    //step 3 get conflict message
+    // step 3 get conflict message
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT,
         TestMenuCommandsConstants.Git.Remotes.REMOTES_TOP,
@@ -164,7 +155,7 @@ public class PushChangeNotUpdatedRepoTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage("Pushed to origin");
 
-    //step 4 valid pull
+    // step 4 valid pull
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT,
         TestMenuCommandsConstants.Git.Remotes.REMOTES_TOP,
@@ -225,7 +216,7 @@ public class PushChangeNotUpdatedRepoTest {
     events.waitExpectedMessage(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
     projectExplorer.selectItem(project);
 
-    //commit
+    // commit
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit(commitMessage);
     git.waitGitStatusBarWithMess(TestGitConstants.COMMIT_MESSAGE_SUCCESS);

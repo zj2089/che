@@ -10,7 +10,7 @@
  */
 'use strict';
 import {CheNotification} from '../../../../components/notification/che-notification.factory';
-import {CheWorkspace} from '../../../../components/api/che-workspace.factory';
+import {CheWorkspace} from '../../../../components/api/workspace/che-workspace.factory';
 
 /**
  * @ngdoc controller
@@ -19,17 +19,24 @@ import {CheWorkspace} from '../../../../components/api/che-workspace.factory';
  * @author Oleksii Orel
  */
 export class WorkspaceStatusController {
-  cheNotification: CheNotification;
-  cheWorkspace: CheWorkspace;
+  /**
+   * Root scope service.
+   */
+  private $rootScope: ng.IRootScopeService;
+  private cheNotification: CheNotification;
+  private cheWorkspace: CheWorkspace;
 
-  isLoading: boolean;
-  workspace: che.IWorkspace;
+  private isLoading: boolean;
+  private workspace: che.IWorkspace;
 
   /**
    * Default constructor that is using resource
    * @ngInject for Dependency injection
    */
-  constructor(cheNotification: CheNotification, cheWorkspace: CheWorkspace) {
+  constructor($rootScope: ng.IRootScopeService,
+              cheNotification: CheNotification,
+              cheWorkspace: CheWorkspace) {
+    this.$rootScope = $rootScope;
     this.cheNotification = cheNotification;
     this.cheWorkspace = cheWorkspace;
 
@@ -42,6 +49,8 @@ export class WorkspaceStatusController {
       return;
     }
 
+    this.updateRecentWorkspace(this.workspace.id);
+
     this.isLoading = true;
     let promise = this.cheWorkspace.startWorkspace(this.workspace.id, this.workspace.config.defaultEnv);
 
@@ -49,7 +58,7 @@ export class WorkspaceStatusController {
       this.isLoading = false;
     }, (error: any) => {
       this.isLoading = false;
-      this.cheNotification.showError(error.data.message ? error.data.message : 'Run workspace error.');
+      this.cheNotification.showError('Run workspace error.', error);
     });
   }
 
@@ -60,13 +69,13 @@ export class WorkspaceStatusController {
     }
 
     this.isLoading = true;
-    let promise = this.cheWorkspace.stopWorkspace(this.workspace.id);
+    let promise = this.cheWorkspace.stopWorkspace(this.workspace.id, false);
 
     promise.then(() => {
       this.isLoading = false;
     }, (error: any) => {
       this.isLoading = false;
-      this.cheNotification.showError(error.data.message ? error.data.message : 'Stop workspace error.');
+      this.cheNotification.showError('Stop workspace error.', error);
     });
   }
 
@@ -98,4 +107,15 @@ export class WorkspaceStatusController {
     let status = this.getWorkspaceStatus();
     return status === 'STOPPING' || status === 'SNAPSHOTTING'
   }
+
+  /**
+   * Emit event to move workspace immediately
+   * to top of the recent workspaces list
+   *
+   * @param {string} workspaceId
+   */
+  updateRecentWorkspace(workspaceId: string): any {
+    this.$rootScope.$broadcast('recent-workspace:set', workspaceId);
+  }
+
 }

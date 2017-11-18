@@ -10,9 +10,9 @@
  */
 package org.eclipse.che.api.user.server;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMapOf;
-import static org.mockito.Matchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMapOf;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -84,7 +84,7 @@ public class UserManagerTest {
   }
 
   @Test
-  public void shouldCreateProfileAndPreferencesOnUserCreation() throws Exception {
+  public void shouldCreateAccountAndProfileAndPreferencesOnUserCreation() throws Exception {
     final UserImpl user = new UserImpl(null, "test@email.com", "testName", null, null);
 
     manager.create(user, false);
@@ -137,13 +137,15 @@ public class UserManagerTest {
 
   @Test
   public void shouldUpdateUser() throws Exception {
-    final User user =
+    final UserImpl user =
         new UserImpl(
             "identifier", "test@email.com", "testName", "password", Collections.emptyList());
+    when(manager.getById(user.getId())).thenReturn(user);
+    UserImpl user2 = new UserImpl(user);
+    user2.setName("testName2");
+    manager.update(user2);
 
-    manager.update(user);
-
-    verify(userDao).update(new UserImpl(user));
+    verify(userDao).update(new UserImpl(user2));
   }
 
   @Test(expectedExceptions = NullPointerException.class)

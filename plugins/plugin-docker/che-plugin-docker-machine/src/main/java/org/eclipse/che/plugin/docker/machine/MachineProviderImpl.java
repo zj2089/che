@@ -69,6 +69,7 @@ import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.commons.env.EnvironmentContext;
 import org.eclipse.che.commons.lang.Size;
 import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
+import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
 import org.eclipse.che.commons.lang.os.WindowsPathEscaper;
 import org.eclipse.che.plugin.docker.client.DockerConnector;
 import org.eclipse.che.plugin.docker.client.DockerConnectorProvider;
@@ -152,6 +153,7 @@ public class MachineProviderImpl implements MachineInstanceProvider {
   private final JsonRpcEndpointToMachineNameHolder jsonRpcEndpointToMachineNameHolder;
   private final boolean doForcePullImage;
   private final boolean privilegedMode;
+  private final String[] securityOpt;
   private final int pidsLimit;
   private final DockerMachineFactory dockerMachineFactory;
   private final List<String> devMachinePortsToExpose;
@@ -187,6 +189,7 @@ public class MachineProviderImpl implements MachineInstanceProvider {
       @Named("machine.docker.machine_volumes") Set<String> allMachinesSystemVolumes,
       @Named("che.docker.always_pull_image") boolean doForcePullImage,
       @Named("che.docker.privileged") boolean privilegedMode,
+      SecurityOptProvider securityOptProvider,
       @Named("che.docker.pids_limit") int pidsLimit,
       @Named("machine.docker.dev_machine.machine_env") Set<String> devMachineEnvVariables,
       @Named("machine.docker.machine_env") Set<String> allMachinesEnvVariables,
@@ -210,6 +213,7 @@ public class MachineProviderImpl implements MachineInstanceProvider {
     this.transmitter = transmitter;
     this.doForcePullImage = doForcePullImage;
     this.privilegedMode = privilegedMode;
+    this.securityOpt = securityOptProvider.get();
     this.snapshotUseRegistry = snapshotUseRegistry;
     // use-cases:
     //  -1  enable unlimited swap
@@ -218,7 +222,8 @@ public class MachineProviderImpl implements MachineInstanceProvider {
     //  1   enable swap with size equal to current memory size
     //
     //  according to docker docs field  memorySwap should be equal to memory+swap
-    //  we calculate this field as memorySwap=memory * (1 + multiplier) so we just add 1 to multiplier
+    //  we calculate this field as memorySwap=memory * (1 + multiplier) so we just add 1 to
+    // multiplier
     this.memorySwapMultiplier = memorySwapMultiplier == -1 ? -1 : memorySwapMultiplier + 1;
     this.jsonRpcEndpointToMachineNameHolder = jsonRpcEndpointToMachineNameHolder;
     this.networkDriver = networkDriver;
@@ -651,6 +656,7 @@ public class MachineProviderImpl implements MachineInstanceProvider {
         .withPidsLimit(pidsLimit)
         .withExtraHosts(allMachinesExtraHosts)
         .withPrivileged(privilegedMode)
+        .withSecurityOpt(securityOpt)
         .withPublishAllPorts(true)
         .withDns(dnsResolvers);
     // CPU limits
@@ -695,8 +701,10 @@ public class MachineProviderImpl implements MachineInstanceProvider {
   // We can detect
   //  - when no command/entrypoint is set
   //  - when most common shell interpreters are used and require additional arguments
-  //  - when most common shell interpreters are used and they require interactive mode which we don't support
-  // When we identify such situation we change CMD/entrypoint in such a way that it runs "tail -f /dev/null".
+  //  - when most common shell interpreters are used and they require interactive mode which we
+  // don't support
+  // When we identify such situation we change CMD/entrypoint in such a way that it runs "tail -f
+  // /dev/null".
   // This command does nothing and lasts until workspace is stopped.
   // Images such as "ubuntu" or "openjdk" fits this situation.
   protected void setNonExitingContainerCommandIfNeeded(ContainerConfig containerConfig)
@@ -736,60 +744,61 @@ public class MachineProviderImpl implements MachineInstanceProvider {
   void readContainerLogsInSeparateThread(
       String container, String workspaceId, String machineId, LineConsumer outputConsumer) {
     executor.execute(
-        () -> {
-          long lastProcessedLogDate = 0;
-          boolean isContainerRunning = true;
-          int errorsCounter = 0;
-          long lastErrorTime = 0;
-          while (isContainerRunning) {
-            try {
-              docker.getContainerLogs(
-                  GetContainerLogsParams.create(container)
-                      .withFollow(true)
-                      .withSince(lastProcessedLogDate),
-                  new LogMessagePrinter(outputConsumer));
-              isContainerRunning = false;
-            } catch (SocketTimeoutException ste) {
-              lastProcessedLogDate = System.currentTimeMillis() / 1000L;
-              // reconnect to container
-            } catch (ContainerNotFoundException e) {
-              isContainerRunning = false;
-            } catch (IOException e) {
-              long errorTime = System.currentTimeMillis();
-              lastProcessedLogDate = errorTime / 1000L;
-              LOG.warn(
-                  "Failed to get logs from machine {} of workspace {} backed by container {}, because: {}.",
-                  machineId,
-                  workspaceId,
-                  container,
-                  e.getMessage(),
-                  e);
-              if (errorTime - lastErrorTime
-                  < 20_000L) { // if new error occurs less than 20 seconds after previous
-                if (++errorsCounter == 5) {
-                  LOG.error(
-                      "Too many errors while streaming logs from machine {} of workspace {} backed by container {}. "
-                          + "Logs streaming is closed. Last error: {}.",
+        ThreadLocalPropagateContext.wrap(
+            () -> {
+              long lastProcessedLogDate = 0;
+              boolean isContainerRunning = true;
+              int errorsCounter = 0;
+              long lastErrorTime = 0;
+              while (isContainerRunning) {
+                try {
+                  docker.getContainerLogs(
+                      GetContainerLogsParams.create(container)
+                          .withFollow(true)
+                          .withSince(lastProcessedLogDate),
+                      new LogMessagePrinter(outputConsumer));
+                  isContainerRunning = false;
+                } catch (SocketTimeoutException ste) {
+                  lastProcessedLogDate = System.currentTimeMillis() / 1000L;
+                  // reconnect to container
+                } catch (ContainerNotFoundException e) {
+                  isContainerRunning = false;
+                } catch (IOException e) {
+                  long errorTime = System.currentTimeMillis();
+                  lastProcessedLogDate = errorTime / 1000L;
+                  LOG.warn(
+                      "Failed to get logs from machine {} of workspace {} backed by container {}, because: {}.",
                       machineId,
                       workspaceId,
                       container,
                       e.getMessage(),
                       e);
-                  break;
-                }
-              } else {
-                errorsCounter = 1;
-              }
-              lastErrorTime = errorTime;
+                  if (errorTime - lastErrorTime
+                      < 20_000L) { // if new error occurs less than 20 seconds after previous
+                    if (++errorsCounter == 5) {
+                      LOG.error(
+                          "Too many errors while streaming logs from machine {} of workspace {} backed by container {}. "
+                              + "Logs streaming is closed. Last error: {}.",
+                          machineId,
+                          workspaceId,
+                          container,
+                          e.getMessage(),
+                          e);
+                      break;
+                    }
+                  } else {
+                    errorsCounter = 1;
+                  }
+                  lastErrorTime = errorTime;
 
-              try {
-                sleep(1_000);
-              } catch (InterruptedException ie) {
-                return;
+                  try {
+                    sleep(1_000);
+                  } catch (InterruptedException ie) {
+                    return;
+                  }
+                }
               }
-            }
-          }
-        });
+            }));
   }
 
   private void cleanUpContainer(String containerId) {

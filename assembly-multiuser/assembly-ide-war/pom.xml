@@ -11,21 +11,16 @@
       Red Hat, Inc. - initial API and implementation
 
 -->
-<!-- Copyright (c) 2012-2016 Codenvy, S.A. All rights reserved. This program 
-    and the accompanying materials are made available under the terms of the 
-    Eclipse Public License v1.0 which accompanies this distribution, and is available 
-    at http://www.eclipse.org/legal/epl-v10.html Contributors: Codenvy, S.A. 
-    - initial API and implementation -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <artifactId>che-assembly-parent</artifactId>
         <groupId>org.eclipse.che.assembly-multiuser</groupId>
-        <version>5.18.0-SNAPSHOT</version>
+        <version>5.21.0-SNAPSHOT</version>
     </parent>
     <artifactId>assembly-ide-war</artifactId>
     <packaging>war</packaging>
-    <name>Fabric8 IDE :: Compiling GWT Application</name>
+    <name>Che IDE Assembly Multiuser :: Compiling GWT Application</name>
     <properties>
         <generated.sources.directory>${project.build.directory}/generated-sources/gen</generated.sources.directory>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -42,12 +37,12 @@
             <type>war</type>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.che.core</groupId>
-            <artifactId>che-machine-authentication-ide</artifactId>
+            <groupId>org.eclipse.che.multiuser</groupId>
+            <artifactId>che-multiuser-keycloak-ide</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.che.plugin</groupId>
-            <artifactId>che-plugin-keycloak-ide</artifactId>
+            <groupId>org.eclipse.che.multiuser</groupId>
+            <artifactId>che-multiuser-machine-authentication-ide</artifactId>
         </dependency>
     </dependencies>
     <build>
@@ -136,7 +131,7 @@
             <plugin>
                 <groupId>org.eclipse.che.core</groupId>
                 <artifactId>che-core-dyna-provider-generator-maven-plugin</artifactId>
-                <version>${che.version}</version>
+                <version>${project.version}</version>
                 <executions>
                     <execution>
                         <phase>generate-sources</phase>
@@ -204,8 +199,7 @@
                             <tasks>
                                 <echo append="false" file="${project.build.directory}/classes/org/eclipse/che/ide/ext/help/client/BuildInfo.properties">revision = ${revision}
                                     buildTime = ${timestamp}
-                                    version =
-                                    ${project.version}</echo>
+                                    version = ${project.version}</echo>
                             </tasks>
                         </configuration>
                     </execution>
@@ -233,6 +227,7 @@
                         <overlay />
                     </overlays>
                     <packagingExcludes>%regex[WEB-INF\\lib\\(?!.*j2ee).*.jar]</packagingExcludes>
+                    <attachClasses>true</attachClasses>
                 </configuration>
             </plugin>
             <plugin>

@@ -22,7 +22,7 @@ import org.eclipse.che.selenium.core.factory.TestFactoryInitializer;
 import org.eclipse.che.selenium.core.provider.TestSvnPasswordProvider;
 import org.eclipse.che.selenium.core.provider.TestSvnRepo1Provider;
 import org.eclipse.che.selenium.core.provider.TestSvnUsernameProvider;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -49,7 +49,7 @@ public class CheckFactoryWithSvnCVSTest {
 
   @Inject private Ide ide;
   @Inject private TestWorkspace ws;
-  @Inject private DefaultTestUser user;
+  @Inject private TestUser user;
 
   @Inject private TestSvnRepo1Provider svnRepo1UrlProvider;
   @Inject private TestSvnUsernameProvider svnUsernameProvider;
@@ -96,11 +96,10 @@ public class CheckFactoryWithSvnCVSTest {
         Arrays.asList("commit-test", "copy", "move", "properties-test", "newfile", "test");
 
     // when
-    testFactory.authenticateAndOpen(ide.driver());
-    seleniumWebDriver.switchFromDashboardIframeToIde();
+    testFactory.authenticateAndOpen();
 
     // then
-    new WebDriverWait(ide.driver(), LOADER_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, LOADER_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath("//div[text()='SVN Authentication']")));

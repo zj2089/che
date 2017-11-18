@@ -246,7 +246,8 @@ public class CheEnvironmentEngine {
 
     EnvironmentImpl environment = new EnvironmentImpl(env);
     // TODO move to machines provider
-    // add random chars to ensure that old environments that weren't removed by some reason won't prevent start
+    // add random chars to ensure that old environments that weren't removed by some reason won't
+    // prevent start
     String networkId = NameGenerator.generate(workspaceId + "_", 16);
 
     String ownerName = EnvironmentContext.getCurrent().getSubject().getUserName();
@@ -659,7 +660,8 @@ public class CheEnvironmentEngine {
                         ? containerNameLinkTo
                         : containerNameLinkTo + ':' + serviceAlias;
                   } else {
-                    // should never happens. Errors like this should be filtered by CheEnvironmentValidator
+                    // should never happens. Errors like this should be filtered by
+                    // CheEnvironmentValidator
                     throw new IllegalArgumentException(
                         "Attempt to link non existing service "
                             + serviceName
@@ -678,7 +680,8 @@ public class CheEnvironmentEngine {
     if (service.getMemLimit() == null || service.getMemLimit() == 0) {
       service.setMemLimit(defaultMachineMemorySizeBytes);
     }
-    // download dockerfile if it is hosted by API to avoid problems with unauthorized requests from docker daemon
+    // download dockerfile if it is hosted by API to avoid problems with unauthorized requests from
+    // docker daemon
     if (service.getBuild() != null
         && service.getBuild().getContext() != null
         && recipeApiPattern.matcher(service.getBuild().getContext()).matches()) {
@@ -927,7 +930,8 @@ public class CheEnvironmentEngine {
             try {
               machineLogger.writeLine(
                   format(
-                      "Failed to boot machine %s of workspace %s, because snapshot not found. "
+                      "Failed to boot machine %s of workspace %s, "
+                          + "because information about snapshot is not found in database. "
                           + "The machine will be created from origin source.",
                       machine.getConfig().getName(), machine.getWorkspaceId()));
             } catch (IOException ignore) {
@@ -941,8 +945,8 @@ public class CheEnvironmentEngine {
           LOG.error(
               format(
                   "The snapshot of the image for the machine %s of the workspace %s not found. "
-                      + "The machine will be created from origin source.",
-                  machine.getConfig().getName(), machine.getWorkspaceId()));
+                      + "The machine will be created from origin source. Details: %s",
+                  machine.getConfig().getName(), machine.getWorkspaceId(), e.getMessage()));
           machine = originMachine;
           instance = machineStarter.startMachine(machineLogger, null);
         } else {

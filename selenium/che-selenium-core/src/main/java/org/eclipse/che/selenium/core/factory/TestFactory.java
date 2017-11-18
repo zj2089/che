@@ -11,12 +11,12 @@
 package org.eclipse.che.selenium.core.factory;
 
 import org.eclipse.che.api.factory.shared.dto.FactoryDto;
+import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestFactoryServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
+import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.user.TestUser;
-import org.openqa.selenium.Cookie;
 import org.openqa.selenium.WebDriver;
 
 /** @author Anatolii Bazko */
@@ -26,29 +26,35 @@ public class TestFactory {
   private final TestDashboardUrlProvider dashboardUrl;
   private final TestFactoryServiceClient testFactoryServiceClient;
   private final TestWorkspaceServiceClient workspaceServiceClient;
-
+  private final Entrance entrance;
   private final String factoryUrl;
+  private final SeleniumWebDriver seleniumWebDriver;
 
   public TestFactory(
       String factoryUrl,
-      DefaultTestUser owner,
+      TestUser owner,
       FactoryDto factoryDto,
       TestDashboardUrlProvider dashboardUrl,
       TestFactoryServiceClient factoryServiceClient,
-      TestWorkspaceServiceClient workspaceServiceClient) {
+      TestWorkspaceServiceClient workspaceServiceClient,
+      Entrance entrance,
+      SeleniumWebDriver seleniumWebDriver) {
     this.factoryDto = factoryDto;
     this.owner = owner;
     this.factoryUrl = factoryUrl;
     this.dashboardUrl = dashboardUrl;
     this.testFactoryServiceClient = factoryServiceClient;
     this.workspaceServiceClient = workspaceServiceClient;
+    this.entrance = entrance;
+    this.seleniumWebDriver = seleniumWebDriver;
   }
 
-  /** Adds authentication token into the browser and opens factory url. */
-  public void authenticateAndOpen(WebDriver driver) throws Exception {
-    driver.get(dashboardUrl.get().toString());
-    driver.manage().addCookie(new Cookie("session-access-key", owner.getAuthToken()));
-    driver.get(factoryUrl);
+  /** Login to factory and open it by url. */
+  public void authenticateAndOpen() throws Exception {
+    seleniumWebDriver.get(dashboardUrl.get().toString());
+    entrance.login(owner);
+    seleniumWebDriver.get(factoryUrl);
+    seleniumWebDriver.switchFromDashboardIframeToIde();
   }
 
   /** Opens factory url. */
@@ -57,26 +63,14 @@ public class TestFactory {
   }
 
   public void delete() throws Exception {
+    workspaceServiceClient.deleteFactoryWorkspaces(
+        factoryDto.getWorkspace().getName(), owner.getName());
     deleteFactory();
-    deleteWorkspaces();
   }
 
   private void deleteFactory() throws Exception {
     if (isNamedFactory()) {
-      testFactoryServiceClient.deleteFactoryByName(factoryDto.getName());
-    }
-  }
-
-  private void deleteWorkspaces() throws Exception {
-    String originalName = factoryDto.getWorkspace().getName();
-    String workspace2delete = originalName;
-    for (int i = 1; ; i++) {
-      if (!workspaceServiceClient.exists(workspace2delete, owner.getName())) {
-        break;
-      }
-
-      workspaceServiceClient.delete(workspace2delete, owner.getName());
-      workspace2delete = originalName + "_" + i;
+      testFactoryServiceClient.deleteFactory(factoryDto.getName());
     }
   }
 

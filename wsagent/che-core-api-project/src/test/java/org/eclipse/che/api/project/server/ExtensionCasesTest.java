@@ -11,6 +11,7 @@
 package org.eclipse.che.api.project.server;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -49,9 +50,9 @@ public class ExtensionCasesTest extends WsAgentTestBase {
     workspaceHolder = new TestWorkspaceHolder(projects);
     ProjectTypeRegistry projectTypeRegistry = new ProjectTypeRegistry(new HashSet<>());
     projectTypeRegistry.registerProjectType(new PT1());
-    //projectTypeRegistry.registerProjectType(new PT3());
+    // projectTypeRegistry.registerProjectType(new PT3());
 
-    //ProjectHandlerRegistry projectHandlerRegistry = new ProjectHandlerRegistry(new HashSet<>());
+    // ProjectHandlerRegistry projectHandlerRegistry = new ProjectHandlerRegistry(new HashSet<>());
 
     projectRegistry =
         new ProjectRegistry(
@@ -66,11 +67,11 @@ public class ExtensionCasesTest extends WsAgentTestBase {
         new ProjectManager(
             vfsProvider,
             projectTypeRegistry,
+            mock(WorkspaceSyncCommunication.class),
             projectRegistry,
             projectHandlerRegistry,
             null,
             fileWatcherNotificationHandler,
-            fileTreeWatcher,
             workspaceHolder,
             fileWatcherManager);
     pm.initWatcher();
@@ -85,7 +86,7 @@ public class ExtensionCasesTest extends WsAgentTestBase {
             projectFolder.createFolder("project2");
             projectRegistry.setProjectType("/project1/project2", BaseProjectType.ID, false);
 
-            //System.out.println(">>S>>> "+projectRegistry);
+            // System.out.println(">>S>>> "+projectRegistry);
 
           }
 

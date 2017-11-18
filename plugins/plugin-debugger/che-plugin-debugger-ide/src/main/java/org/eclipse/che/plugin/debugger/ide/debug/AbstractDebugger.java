@@ -13,12 +13,14 @@ package org.eclipse.che.plugin.debugger.ide.debug;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.FLOAT_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
 
-import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import com.google.gwt.user.client.rpc.AsyncCallback;
 import com.google.web.bindery.event.shared.EventBus;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerManager;
@@ -26,8 +28,9 @@ import org.eclipse.che.api.core.jsonrpc.commons.RequestTransmitter;
 import org.eclipse.che.api.debug.shared.dto.BreakpointDto;
 import org.eclipse.che.api.debug.shared.dto.DebugSessionDto;
 import org.eclipse.che.api.debug.shared.dto.LocationDto;
+import org.eclipse.che.api.debug.shared.dto.MethodDto;
 import org.eclipse.che.api.debug.shared.dto.SimpleValueDto;
-import org.eclipse.che.api.debug.shared.dto.StackFrameDumpDto;
+import org.eclipse.che.api.debug.shared.dto.ThreadStateDto;
 import org.eclipse.che.api.debug.shared.dto.VariableDto;
 import org.eclipse.che.api.debug.shared.dto.VariablePathDto;
 import org.eclipse.che.api.debug.shared.dto.action.ResumeActionDto;
@@ -40,15 +43,17 @@ import org.eclipse.che.api.debug.shared.dto.event.BreakpointActivatedEventDto;
 import org.eclipse.che.api.debug.shared.dto.event.DebuggerEventDto;
 import org.eclipse.che.api.debug.shared.dto.event.DisconnectEventDto;
 import org.eclipse.che.api.debug.shared.dto.event.SuspendEventDto;
+import org.eclipse.che.api.debug.shared.model.Breakpoint;
 import org.eclipse.che.api.debug.shared.model.DebuggerInfo;
 import org.eclipse.che.api.debug.shared.model.Location;
+import org.eclipse.che.api.debug.shared.model.Method;
 import org.eclipse.che.api.debug.shared.model.SimpleValue;
 import org.eclipse.che.api.debug.shared.model.StackFrameDump;
 import org.eclipse.che.api.debug.shared.model.Variable;
 import org.eclipse.che.api.debug.shared.model.VariablePath;
 import org.eclipse.che.api.debug.shared.model.action.Action;
-import org.eclipse.che.api.debug.shared.model.impl.SimpleValueImpl;
-import org.eclipse.che.api.debug.shared.model.impl.StackFrameDumpImpl;
+import org.eclipse.che.api.debug.shared.model.impl.BreakpointImpl;
+import org.eclipse.che.api.debug.shared.model.impl.LocationImpl;
 import org.eclipse.che.api.promises.client.Function;
 import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
@@ -56,15 +61,11 @@ import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
 import org.eclipse.che.api.promises.client.js.JsPromiseError;
 import org.eclipse.che.api.promises.client.js.Promises;
-import org.eclipse.che.commons.annotation.Nullable;
-import org.eclipse.che.ide.api.debug.Breakpoint;
 import org.eclipse.che.ide.api.debug.BreakpointManager;
 import org.eclipse.che.ide.api.debug.DebuggerServiceClient;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateEvent;
 import org.eclipse.che.ide.api.machine.events.WsAgentStateHandler;
 import org.eclipse.che.ide.api.notification.NotificationManager;
-import org.eclipse.che.ide.api.resources.Project;
-import org.eclipse.che.ide.api.resources.Resource;
 import org.eclipse.che.ide.api.resources.VirtualFile;
 import org.eclipse.che.ide.debug.Debugger;
 import org.eclipse.che.ide.debug.DebuggerDescriptor;
@@ -84,6 +85,8 @@ import org.eclipse.che.ide.util.storage.LocalStorageProvider;
 public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   public static final String LOCAL_STORAGE_DEBUGGER_SESSION_KEY = "che-debugger-session";
   public static final String LOCAL_STORAGE_DEBUGGER_STATE_KEY = "che-debugger-state";
+  public static final String LOCAL_STORAGE_DEBUGGER_DISPOSABLE_BREAKPOINT_KEY =
+      "che-debugger-disposable-breakpoint";
   public static final String WS_AGENT_ENDPOINT = "ws-agent";
 
   public static final String EVENT_DEBUGGER_MESSAGE_BREAKPOINT = "event:debugger:breakpoint";
@@ -101,7 +104,7 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   private final DebuggerServiceClient service;
   private final LocalStorageProvider localStorageProvider;
   private final EventBus eventBus;
-  private final ActiveFileHandler activeFileHandler;
+  private final DebuggerLocationHandlerManager debuggerLocationHandlerManager;
   private final DebuggerManager debuggerManager;
   private final BreakpointManager breakpointManager;
   private final String debuggerType;
@@ -109,6 +112,7 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
 
   private DebugSessionDto debugSessionDto;
   private Location currentLocation;
+  private BreakpointDto disposableBreakpoint;
 
   public AbstractDebugger(
       DebuggerServiceClient service,
@@ -117,19 +121,19 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
       DtoFactory dtoFactory,
       LocalStorageProvider localStorageProvider,
       EventBus eventBus,
-      ActiveFileHandler activeFileHandler,
       DebuggerManager debuggerManager,
       NotificationManager notificationManager,
       BreakpointManager breakpointManager,
-      String type,
-      RequestHandlerManager requestHandlerManager) {
+      RequestHandlerManager requestHandlerManager,
+      DebuggerLocationHandlerManager debuggerLocationHandlerManager,
+      String type) {
     this.service = service;
     this.transmitter = transmitter;
     this.configurator = configurator;
     this.dtoFactory = dtoFactory;
     this.localStorageProvider = localStorageProvider;
     this.eventBus = eventBus;
-    this.activeFileHandler = activeFileHandler;
+    this.debuggerLocationHandlerManager = debuggerLocationHandlerManager;
     this.debuggerManager = debuggerManager;
     this.notificationManager = notificationManager;
     this.breakpointManager = breakpointManager;
@@ -173,7 +177,27 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
                       }
 
                       if (currentLocation != null) {
-                        openCurrentFile();
+                        debuggerLocationHandlerManager
+                            .getOrDefault(currentLocation)
+                            .find(
+                                currentLocation,
+                                new AsyncCallback<VirtualFile>() {
+                                  @Override
+                                  public void onFailure(Throwable caught) {
+                                    for (DebuggerObserver observer : observers) {
+                                      observer.onBreakpointStopped(
+                                          currentLocation.getTarget(), currentLocation);
+                                    }
+                                  }
+
+                                  @Override
+                                  public void onSuccess(VirtualFile result) {
+                                    for (DebuggerObserver observer : observers) {
+                                      observer.onBreakpointStopped(
+                                          result.getLocation().toString(), currentLocation);
+                                    }
+                                  }
+                                });
                       }
 
                       startCheckingEvents();
@@ -190,11 +214,12 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   }
 
   private void onEventListReceived(@NotNull DebuggerEventDto event) {
-    LocationDto newLocationDto;
 
     switch (event.getType()) {
       case SUSPEND:
-        newLocationDto = ((SuspendEventDto) event).getLocation();
+        currentLocation = ((SuspendEventDto) event).getLocation();
+        open(currentLocation);
+        removeDisposableBreakpoint();
         break;
       case BREAKPOINT_ACTIVATED:
         BreakpointDto breakpointDto = ((BreakpointActivatedEventDto) event).getBreakpoint();
@@ -209,48 +234,37 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
         return;
     }
 
-    if (newLocationDto != null) {
-      currentLocation = newLocationDto;
-      openCurrentFile();
-    }
-
     preserveDebuggerState();
   }
 
-  private void openCurrentFile() {
-    //todo we need add possibility to handle few files
-    try {
-      activeFileHandler.openFile(
-          currentLocation,
-          new AsyncCallback<VirtualFile>() {
-            @Override
-            public void onFailure(Throwable caught) {
-              for (DebuggerObserver observer : observers) {
-                observer.onBreakpointStopped(
-                    currentLocation.getTarget(),
-                    currentLocation.getTarget(),
-                    currentLocation.getLineNumber());
-              }
-            }
-
-            @Override
-            public void onSuccess(VirtualFile result) {
-              for (DebuggerObserver observer : observers) {
-                observer.onBreakpointStopped(
-                    result.getLocation().toString(),
-                    currentLocation.getTarget(),
-                    currentLocation.getLineNumber());
-              }
-            }
-          });
-    } catch (Exception e) {
-      for (DebuggerObserver observer : observers) {
-        observer.onBreakpointStopped(
-            currentLocation.getTarget(),
-            currentLocation.getTarget(),
-            currentLocation.getLineNumber());
-      }
+  private void removeDisposableBreakpoint() {
+    if (disposableBreakpoint != null) {
+      deleteBreakpoint(disposableBreakpoint);
     }
+    invalidateDisposableBreakpoint();
+    preserveDebuggerState();
+  }
+
+  private void open(Location location) {
+    debuggerLocationHandlerManager
+        .getOrDefault(location)
+        .open(
+            location,
+            new AsyncCallback<VirtualFile>() {
+              @Override
+              public void onFailure(Throwable caught) {
+                for (DebuggerObserver observer : observers) {
+                  observer.onBreakpointStopped(location.getTarget(), location);
+                }
+              }
+
+              @Override
+              public void onSuccess(VirtualFile result) {
+                for (DebuggerObserver observer : observers) {
+                  observer.onBreakpointStopped(result.getLocation().toString(), location);
+                }
+              }
+            });
   }
 
   /**
@@ -260,9 +274,8 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
    * <li>etc
    */
   private void onBreakpointActivated(LocationDto locationDto) {
-    String filePath = fqnToPath(locationDto);
     for (DebuggerObserver observer : observers) {
-      observer.onBreakpointActivated(filePath, locationDto.getLineNumber() - 1);
+      observer.onBreakpointActivated(locationDto.getTarget(), locationDto.getLineNumber());
     }
   }
 
@@ -328,52 +341,44 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   }
 
   @Override
-  public Promise<SimpleValue> getValue(Variable variable) {
+  public Promise<? extends SimpleValue> getValue(Variable variable, long threadId, int frameIndex) {
     if (!isConnected()) {
       return Promises.reject(JsPromiseError.create("Debugger is not connected"));
     }
 
-    Promise<SimpleValueDto> promise = service.getValue(debugSessionDto.getId(), asDto(variable));
-    return promise.then((Function<SimpleValueDto, SimpleValue>) SimpleValueImpl::new);
+    return service.getValue(debugSessionDto.getId(), toDto(variable), threadId, frameIndex);
   }
 
   @Override
-  public Promise<StackFrameDump> dumpStackFrame() {
+  public Promise<? extends StackFrameDump> getStackFrameDump(long threadId, int frameIndex) {
     if (!isConnected()) {
       return Promises.reject(JsPromiseError.create("Debugger is not connected"));
     }
 
-    Promise<StackFrameDumpDto> stackFrameDump = service.getStackFrameDump(debugSessionDto.getId());
-    return stackFrameDump.then(
-        (Function<StackFrameDumpDto, StackFrameDump>) StackFrameDumpImpl::new);
+    return service.getStackFrameDump(debugSessionDto.getId(), threadId, frameIndex);
   }
 
   @Override
-  public void addBreakpoint(final VirtualFile file, final int lineNumber) {
+  public Promise<List<ThreadStateDto>> getThreadDump() {
+    if (!isConnected()) {
+      return Promises.reject(JsPromiseError.create("Debugger is not connected"));
+    }
+
+    return service.getThreadDump(debugSessionDto.getId());
+  }
+
+  @Override
+  public Breakpoint createBreakpoint(VirtualFile file, int lineNumber) {
+    return new BreakpointImpl(new LocationImpl(file.getLocation().toString(), lineNumber));
+  }
+
+  @Override
+  public void addBreakpoint(final Breakpoint breakpoint) {
     if (isConnected()) {
-      String fqn = pathToFqn(file);
-      if (fqn == null) {
-        return;
-      }
-
-      final String filePath = file.getLocation().toString();
-      LocationDto locationDto =
-          dtoFactory
-              .createDto(LocationDto.class)
-              .withLineNumber(lineNumber + 1)
-              .withTarget(fqn)
-              .withResourcePath(filePath)
-              .withResourceProjectPath(getProject(file).getPath());
-
-      BreakpointDto breakpointDto =
-          dtoFactory.createDto(BreakpointDto.class).withLocation(locationDto).withEnabled(true);
-
-      Promise<Void> promise = service.addBreakpoint(debugSessionDto.getId(), breakpointDto);
+      Promise<Void> promise = service.addBreakpoint(debugSessionDto.getId(), toDto(breakpoint));
       promise
           .then(
               it -> {
-                Breakpoint breakpoint =
-                    new Breakpoint(Breakpoint.Type.BREAKPOINT, lineNumber, filePath, file, true);
                 for (DebuggerObserver observer : observers) {
                   observer.onBreakpointAdded(breakpoint);
                 }
@@ -382,42 +387,21 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
               error -> {
                 Log.error(AbstractDebugger.class, error.getMessage());
               });
-    } else {
-      Breakpoint breakpoint =
-          new Breakpoint(
-              Breakpoint.Type.BREAKPOINT, lineNumber, file.getLocation().toString(), file, false);
-      for (DebuggerObserver observer : observers) {
-        observer.onBreakpointAdded(breakpoint);
-      }
     }
   }
 
   @Override
-  public void deleteBreakpoint(final VirtualFile file, final int lineNumber) {
+  public void deleteBreakpoint(final Breakpoint breakpoint) {
     if (!isConnected()) {
       return;
     }
-    LocationDto locationDto = dtoFactory.createDto(LocationDto.class);
-    locationDto.setLineNumber(lineNumber + 1);
 
-    String fqn = pathToFqn(file);
-    if (fqn == null) {
-      return;
-    }
-    locationDto.setTarget(fqn);
-
-    Promise<Void> promise = service.deleteBreakpoint(debugSessionDto.getId(), locationDto);
+    Promise<Void> promise =
+        service.deleteBreakpoint(debugSessionDto.getId(), toDto(breakpoint.getLocation()));
     promise
         .then(
             it -> {
               for (DebuggerObserver observer : observers) {
-                Breakpoint breakpoint =
-                    new Breakpoint(
-                        Breakpoint.Type.BREAKPOINT,
-                        lineNumber,
-                        file.getLocation().toString(),
-                        file,
-                        false);
                 observer.onBreakpointDeleted(breakpoint);
               }
             })
@@ -445,6 +429,15 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
             error -> {
               Log.error(AbstractDebugger.class, error.getMessage());
             });
+  }
+
+  @Override
+  public Promise<List<BreakpointDto>> getAllBreakpoints() {
+    if (!isConnected()) {
+      return Promises.reject(JsPromiseError.create("Debugger is not connected"));
+    }
+
+    return service.getAllBreakpoints(debugSessionDto.getId());
   }
 
   @Override
@@ -492,23 +485,12 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   protected void startDebugger(final DebugSessionDto debugSessionDto) {
     List<BreakpointDto> breakpoints = new ArrayList<>();
     for (Breakpoint breakpoint : breakpointManager.getBreakpointList()) {
-      LocationDto locationDto =
-          dtoFactory
-              .createDto(LocationDto.class)
-              .withLineNumber(breakpoint.getLineNumber() + 1)
-              .withResourcePath(breakpoint.getPath())
-              .withResourceProjectPath(getProject(breakpoint.getFile()).getPath());
+      BreakpointDto breakpointDto = dtoFactory.createDto(BreakpointDto.class);
+      breakpointDto.setLocation(toDto(breakpoint.getLocation()));
+      breakpointDto.setEnabled(true);
+      breakpointDto.setCondition(breakpoint.getCondition());
 
-      String target = pathToFqn(breakpoint.getFile());
-      if (target != null) {
-        locationDto.setTarget(target);
-
-        BreakpointDto breakpointDto = dtoFactory.createDto(BreakpointDto.class);
-        breakpointDto.setLocation(locationDto);
-        breakpointDto.setEnabled(true);
-
-        breakpoints.add(breakpointDto);
-      }
+      breakpoints.add(breakpointDto);
     }
 
     StartActionDto action = dtoFactory.createDto(StartActionDto.class);
@@ -529,6 +511,7 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
       disconnect = Promises.resolve(null);
     }
 
+    invalidateDisposableBreakpoint();
     invalidateDebugSession();
     preserveDebuggerState();
 
@@ -630,6 +613,40 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   }
 
   @Override
+  public void runToLocation(Location location) {
+    if (!isConnected()) {
+      return;
+    }
+
+    if (disposableBreakpoint != null) {
+      return;
+    }
+
+    disposableBreakpoint =
+        dtoFactory.createDto(BreakpointDto.class).withLocation(toDto(location)).withEnabled(true);
+
+    service
+        .addBreakpoint(debugSessionDto.getId(), disposableBreakpoint)
+        .then(
+            it -> {
+              preserveDebuggerState();
+              resume();
+            })
+        .catchError(
+            error -> {
+              service
+                  .deleteBreakpoint(debugSessionDto.getId(), disposableBreakpoint.getLocation())
+                  .catchError(
+                      err -> {
+                        Log.error(AbstractDebugger.class, err.getMessage());
+                      });
+
+              invalidateDisposableBreakpoint();
+              preserveDebuggerState();
+            });
+  }
+
+  @Override
   public void suspend() {
     if (!isConnected()) {
       return;
@@ -647,25 +664,25 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
   }
 
   @Override
-  public Promise<String> evaluate(String expression) {
+  public Promise<String> evaluate(String expression, long threadId, int frameIndex) {
     if (isConnected()) {
-      return service.evaluate(debugSessionDto.getId(), expression);
+      return service.evaluate(debugSessionDto.getId(), expression, threadId, frameIndex);
     }
 
     return Promises.reject(JsPromiseError.create("Debugger is not connected"));
   }
 
   @Override
-  public void setValue(final Variable variable) {
+  public void setValue(final Variable variable, final long threadId, final int frameIndex) {
     if (isConnected()) {
-      Promise<Void> promise = service.setValue(debugSessionDto.getId(), asDto(variable));
+      Promise<Void> promise =
+          service.setValue(debugSessionDto.getId(), toDto(variable), threadId, frameIndex);
 
       promise
           .then(
               it -> {
                 for (DebuggerObserver observer : observers) {
-                  observer.onValueChanged(
-                      variable.getVariablePath().getPath(), variable.getValue());
+                  observer.onValueChanged(variable, threadId, frameIndex);
                 }
               })
           .catchError(
@@ -713,6 +730,10 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
     currentLocation = null;
   }
 
+  private void invalidateDisposableBreakpoint() {
+    disposableBreakpoint = null;
+  }
+
   /** Preserves debugger information into the local storage. */
   protected void preserveDebuggerState() {
     LocalStorage localStorage = localStorageProvider.get();
@@ -724,12 +745,22 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
     if (!isConnected()) {
       localStorage.setItem(LOCAL_STORAGE_DEBUGGER_SESSION_KEY, "");
       localStorage.setItem(LOCAL_STORAGE_DEBUGGER_STATE_KEY, "");
+      localStorage.setItem(LOCAL_STORAGE_DEBUGGER_DISPOSABLE_BREAKPOINT_KEY, "");
     } else {
       localStorage.setItem(LOCAL_STORAGE_DEBUGGER_SESSION_KEY, dtoFactory.toJson(debugSessionDto));
+
       if (currentLocation == null) {
         localStorage.setItem(LOCAL_STORAGE_DEBUGGER_STATE_KEY, "");
       } else {
         localStorage.setItem(LOCAL_STORAGE_DEBUGGER_STATE_KEY, dtoFactory.toJson(currentLocation));
+      }
+
+      if (disposableBreakpoint == null) {
+        localStorage.setItem(LOCAL_STORAGE_DEBUGGER_DISPOSABLE_BREAKPOINT_KEY, "");
+      } else {
+        localStorage.setItem(
+            LOCAL_STORAGE_DEBUGGER_DISPOSABLE_BREAKPOINT_KEY,
+            dtoFactory.toJson(disposableBreakpoint));
       }
     }
   }
@@ -744,7 +775,7 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
     }
 
     String data = localStorage.getItem(LOCAL_STORAGE_DEBUGGER_SESSION_KEY);
-    if (data != null && !data.isEmpty()) {
+    if (!Strings.isNullOrEmpty(data)) {
       DebugSessionDto debugSessionDto = dtoFactory.createDtoFromJson(data, DebugSessionDto.class);
       if (!debugSessionDto.getType().equals(getDebuggerType())) {
         return;
@@ -754,52 +785,73 @@ public abstract class AbstractDebugger implements Debugger, DebuggerObservable {
     }
 
     data = localStorage.getItem(LOCAL_STORAGE_DEBUGGER_STATE_KEY);
-    if (data != null && !data.isEmpty()) {
+    if (!Strings.isNullOrEmpty(data)) {
       currentLocation = dtoFactory.createDtoFromJson(data, LocationDto.class);
+    }
+
+    data = localStorage.getItem(LOCAL_STORAGE_DEBUGGER_DISPOSABLE_BREAKPOINT_KEY);
+    if (!Strings.isNullOrEmpty(data)) {
+      disposableBreakpoint = dtoFactory.createDtoFromJson(data, BreakpointDto.class);
     }
   }
 
-  private VariableDto asDto(Variable variable) {
-    VariableDto dto = dtoFactory.createDto(VariableDto.class);
-    dto.withValue(variable.getValue());
-    dto.withVariablePath(asDto(variable.getVariablePath()));
-    dto.withPrimitive(variable.isPrimitive());
-    dto.withType(variable.getType());
-    dto.withName(variable.getName());
-    dto.withExistInformation(variable.isExistInformation());
-    dto.withVariables(asDto(variable.getVariables()));
-    return dto;
-  }
+  private List<VariableDto> toDto(List<? extends Variable> variables) {
+    if (variables == null || variables.isEmpty()) {
+      return Collections.emptyList();
+    }
 
-  private List<VariableDto> asDto(List<? extends Variable> variables) {
     List<VariableDto> dtos = new ArrayList<>(variables.size());
     for (Variable v : variables) {
-      dtos.add(asDto(v));
+      dtos.add(toDto(v));
     }
     return dtos;
   }
 
-  private VariablePathDto asDto(VariablePath variablePath) {
-    return dtoFactory.createDto(VariablePathDto.class).withPath(variablePath.getPath());
+  private VariableDto toDto(Variable variable) {
+    SimpleValue simpleValue = variable.getValue();
+    VariablePath variablePath = variable.getVariablePath();
+    VariableDto dto = dtoFactory.createDto(VariableDto.class);
+    dto.withValue(
+        dtoFactory
+            .createDto(SimpleValueDto.class)
+            .withString(simpleValue.getString())
+            .withVariables(toDto(simpleValue.getVariables())));
+    dto.withVariablePath(
+        dtoFactory.createDto(VariablePathDto.class).withPath(variablePath.getPath()));
+    dto.withPrimitive(variable.isPrimitive());
+    dto.withType(variable.getType());
+    dto.withName(variable.getName());
+
+    return dto;
   }
 
-  @Nullable
-  private Project getProject(VirtualFile virtualFile) {
-    if (virtualFile instanceof Resource) {
-      Optional<Project> projectOptional = ((Resource) virtualFile).getRelatedProject();
-      if (projectOptional.isPresent()) {
-        return projectOptional.get();
-      }
+  protected LocationDto toDto(Location location) {
+    MethodDto methodDto = dtoFactory.createDto(MethodDto.class);
+    Method method = location.getMethod();
+    if (method != null) {
+      List<VariableDto> arguments =
+          method.getArguments().stream().map(this::toDto).collect(Collectors.toList());
+      methodDto.setArguments(arguments);
+      methodDto.setName(method.getName());
     }
-    return null;
+    return dtoFactory
+        .createDto(LocationDto.class)
+        .withTarget(location.getTarget())
+        .withLineNumber(location.getLineNumber())
+        .withExternalResource(location.isExternalResource())
+        .withExternalResourceId(location.getExternalResourceId())
+        .withResourceProjectPath(location.getResourceProjectPath())
+        .withMethod(methodDto)
+        .withThreadId(location.getThreadId());
   }
 
-  /** Transforms FQN to file path. */
-  protected abstract String fqnToPath(@NotNull Location location);
-
-  /** Transforms file path to FQN> */
-  @Nullable
-  protected abstract String pathToFqn(VirtualFile file);
+  protected BreakpointDto toDto(Breakpoint breakpoint) {
+    return dtoFactory
+        .createDto(BreakpointDto.class)
+        .withLocation(toDto(breakpoint.getLocation()))
+        .withEnabled(true)
+        .withCondition(breakpoint.getCondition());
+  }
 
   protected abstract DebuggerDescriptor toDescriptor(Map<String, String> connectionProperties);
 }

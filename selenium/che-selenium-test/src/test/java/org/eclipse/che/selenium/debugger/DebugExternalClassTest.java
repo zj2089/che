@@ -92,7 +92,8 @@ public class DebugExternalClassTest {
 
     projectExplorer.quickRevealToItemWithJavaScript(PATH_TO_CLASS);
 
-    // perform command "Maven > Reimport" to avoid "Type with fully qualified name: ch.qos.logback.classic.Logger was not found" error
+    // perform command "Maven > Reimport" to avoid "Type with fully qualified name:
+    // ch.qos.logback.classic.Logger was not found" error
     projectExplorer.openContextMenuByPathSelectedItem(PROJECT);
     projectExplorer.clickOnItemInContextMenu(TestProjectExplorerContextMenuConstants.MAVEN);
     projectExplorer.clickOnNewContextMenuItem(
@@ -122,25 +123,27 @@ public class DebugExternalClassTest {
   @Test
   public void shouldDebugJreClass() {
     // when
-    editor.setBreakPointAndWaitInactiveState(19);
+    editor.setInactiveBreakpoint(19);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         debugConfig.getXpathToІRunDebugCommand(PROJECT));
 
     notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitBreakPointWithActiveState(19);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_INTO);
+    editor.waitActiveBreakpoint(19);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
 
     // then
     editor.waitActiveTabFileName("Logger"); // there should be class "Logger" opened
     debugPanel.waitDebugHighlightedText(
-        "    "); // we can't rely on concrete code of external library which can be changed in future
+        "    "); // we can't rely on concrete code of external library which can be changed in
+    // future
     debugPanel.waitTextInVariablesPanel(
-        ": \"Info from java logger\""); // there should be at least parameter with value "Info from java logger"
+        "=\"Info from java logger\""); // there should be at least parameter with value "Info from
+    // java logger"
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
 
     // then
     editor.waitActiveTabFileName("SimpleLogger");
@@ -149,35 +152,36 @@ public class DebugExternalClassTest {
   @Test(priority = 1)
   public void shouldDebugMavenArtifactClassWithSources() {
     // when
-    editor.setBreakPointAndWaitInactiveState(23);
+    editor.setInactiveBreakpoint(23);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         debugConfig.getXpathToІRunDebugCommand(PROJECT));
 
     notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitBreakPointWithActiveState(23);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_INTO);
+    editor.waitActiveBreakpoint(23);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
 
     // then
     editor.waitActiveTabFileName(
-        "Logger"); // there should be class "Logger" opened in decompiled view with "Download sources" link at the top
+        "Logger"); // there should be class "Logger" opened in decompiled view with "Download
+    // sources" link at the top
     editor.clickOnDownloadSourcesLink();
     editor.waitActiveTabFileName("Logger"); // there should be class "Logger" opened
     debugPanel.waitDebugHighlightedText(
         "filterAndLog_1(FQCN, null, Level.INFO, format, arg, null);");
     debugPanel.waitTextInVariablesPanel(
-        ": \"Info from {}\""); // there should be at least parameter with value "Info from {}"
+        "=\"Info from {}\""); // there should be at least parameter with value "Info from {}"
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OVER);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
 
     // then
     editor.waitActiveTabFileName("Logger"); // there should be class "Logger" opened
     debugPanel.waitDebugHighlightedText("  }");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OVER);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
 
     // then
     editor.waitActiveTabFileName("SimpleLogger");
@@ -188,27 +192,29 @@ public class DebugExternalClassTest {
   @Test(priority = 2)
   public void shouldHandleDebugOfMavenArtifactWithoutSources() {
     // when
-    editor.setBreakPointAndWaitInactiveState(27);
+    editor.setInactiveBreakpoint(27);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
         debugConfig.getXpathToІRunDebugCommand(PROJECT));
 
     notifications.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitBreakPointWithActiveState(27);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_INTO);
+    editor.waitActiveBreakpoint(27);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
 
     // then
     editor.waitActiveTabFileName(
-        "Category"); // there should be class "Category" opened in decompiled view with "Download sources" link at the top
-    editor
-        .clickOnDownloadSourcesLink(); // there should be "Download sources" link displayed in at the top of editor. Download they.
+        "Category"); // there should be class "Category" opened in decompiled view with "Download
+    // sources" link at the top
+    editor.clickOnDownloadSourcesLink(); // there should be "Download sources" link displayed in at
+    // the top of editor. Download they.
     notifications.waitExpectedMessageOnProgressPanelAndClosed(
-        "Download sources for 'org.apache.log4j.Category' failed"); // there should an error of downloading the sources
+        "Download sources for 'org.apache.log4j.Category' failed"); // there should an error of
+    // downloading the sources
     editor.waitActiveTabFileName("Category"); // there should be class "Category" opened
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OUT);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
 
     // then
     editor.waitActiveTabFileName("SimpleLogger");

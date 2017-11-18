@@ -13,15 +13,14 @@ package org.eclipse.che.selenium.git;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import java.util.Date;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
+import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Events;
@@ -58,7 +57,7 @@ public class CheckoutToRemoteBranchTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -77,20 +76,14 @@ public class CheckoutToRemoteBranchTest {
   @Inject private NotificationsPopupPanel notifications;
   @Inject private ImportProjectFromLocation importFromLocation;
   @Inject private Wizard projectWizard;
-  @Inject private TestSshServiceClient testSshServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
   @Inject private TestProjectServiceClient testProjectServiceClient;
-  @Inject private TestGitHubServiceClient gitHubClientService;
+  @Inject private SeleniumWebDriver seleniumWebDriver;
 
   @BeforeClass
   public void prepare() throws Exception {
-    try {
-      String publicKey = testSshServiceClient.generateGithubKey();
-      gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-    } catch (ConflictException ignored) {
-      // already generated
-    }
-
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
     ide.open(ws);
   }
@@ -237,7 +230,6 @@ public class CheckoutToRemoteBranchTest {
     git.waitGroupGitCompareIsOpen();
     git.selectFileInChangedFilesTreePanel("GreetingController.java");
     checkChangesIntoCompareForm(uniqueValue);
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
     git.waitGroupGitCompareIsOpen();
     git.selectFileInChangedFilesTreePanel("index.jsp");
@@ -281,7 +273,6 @@ public class CheckoutToRemoteBranchTest {
   private void checkChangesIntoCompareForm(String expText) {
     git.clickOnGroupCompareButton();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor(expText);
     git.waitTextNotPresentIntoCompareRightEditor(expText);
   }

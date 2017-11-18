@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.ExecutionException;
 import org.eclipse.che.commons.json.JsonParseException;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
@@ -29,7 +30,6 @@ import org.eclipse.che.selenium.pageobject.Ide;
 import org.eclipse.che.selenium.pageobject.Menu;
 import org.eclipse.che.selenium.pageobject.NotificationsPopupPanel;
 import org.eclipse.che.selenium.pageobject.debug.DebugPanel;
-import org.eclipse.che.selenium.pageobject.debug.DebugPanel.DebuggerButtonsPanel;
 import org.eclipse.che.selenium.pageobject.debug.NodeJsDebugConfig;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -58,6 +58,7 @@ public class NodeJsDebugTest {
   @Inject private NotificationsPopupPanel notifications;
   @Inject private Menu menu;
   @Inject private TestProjectServiceClient testProjectServiceClient;
+  @Inject private SeleniumWebDriver seleniumWebDriver;
 
   @BeforeClass
   public void prepare() throws Exception {
@@ -86,12 +87,12 @@ public class NodeJsDebugTest {
     checkDebugStepsFeatures();
     checkEvaluationFeatures();
 
-    //disconnect session, check highlighter is disappear
-    debugPanel.clickOnButton(DebuggerButtonsPanel.RESUME_BTN_ID);
-    new WebDriverWait(ide.driver(), REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+    // disconnect session, check highlighter is disappear
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(
             ExpectedConditions.invisibilityOfElementLocated(
-                By.xpath("//div[text()='{" + PROJECT_NAME + "/app.js:13} ']")));
+                By.xpath("//div[text()='{/app.js:13} ']")));
     debugPanel.waitBreakPointsPanelIsEmpty();
   }
 
@@ -104,30 +105,30 @@ public class NodeJsDebugTest {
 
   /** @return 'Che-debug-configurations' values from browser storage */
   private String getDataAboutDebugSessionFromStorage() {
-    JavascriptExecutor js = (JavascriptExecutor) ide.driver();
+    JavascriptExecutor js = (JavascriptExecutor) seleniumWebDriver;
     String injectedJsScript = "return window.localStorage.getItem('che-debug-configurations');";
     return js.executeScript(injectedJsScript).toString();
   }
 
   /** Check step into, step over and step out feature */
   private void checkDebugStepsFeatures() {
-    debugPanel.clickOnButton(DebuggerButtonsPanel.STEP_OVER);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
     debugPanel.waitDebugHighlightedText("var b = greetings.sayHelloInEnglish();");
-    debugPanel.clickOnButton(DebuggerButtonsPanel.STEP_INTO);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_INTO);
     editorPageObj.waitActiveEditor();
     editorPageObj.waitTabIsPresent("greetings.js");
     debugPanel.waitDebugHighlightedText("return \"HELLO\";");
-    debugPanel.clickOnButton(DebuggerButtonsPanel.STEP_OUT);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
     debugPanel.waitDebugHighlightedText("var c=\"some add value\" + b;");
-    new WebDriverWait(ide.driver(), REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, REDRAW_UI_ELEMENTS_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
-                By.xpath("//div[text()='{" + PROJECT_NAME + "/app.js:13} ']")));
-    debugPanel.clickOnButton(DebuggerButtonsPanel.STEP_OVER);
+                By.xpath("//div[text()='{app.js:13} ']")));
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OVER);
   }
 
   private void checkEvaluationFeatures() {
-    debugPanel.clickOnButton(DebuggerButtonsPanel.EVALUATE_EXPRESSIONS);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.EVALUATE_EXPRESSIONS);
     debugPanel.typeEvaluateExpression("c.length");
     debugPanel.clickEvaluateBtn();
     debugPanel.waitExpectedResultInEvaluateExpression("19");

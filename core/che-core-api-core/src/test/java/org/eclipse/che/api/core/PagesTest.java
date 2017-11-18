@@ -10,8 +10,8 @@
  */
 package org.eclipse.che.api.core;
 
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -55,7 +55,7 @@ public class PagesTest {
   }
 
   @Test
-  public void eagerlyIteratesAllElements() {
+  public void eagerlyIteratesAllElements() throws Exception {
     ArrayList<String> result = Lists.newArrayList(Pages.iterate(testSource::getStrings, 2));
 
     assertEquals(result, testSource.strings);

@@ -45,6 +45,7 @@ import org.eclipse.che.ide.api.selection.SelectionAgent;
 import org.eclipse.che.ide.api.ssh.SshServiceClient;
 import org.eclipse.che.ide.api.ssh.SshServiceClientImpl;
 import org.eclipse.che.ide.api.user.AskCredentialsDialog;
+import org.eclipse.che.ide.api.vcs.VcsChangeMarkerRenderFactory;
 import org.eclipse.che.ide.client.ConnectionClosedInformerImpl;
 import org.eclipse.che.ide.clipboard.ClipboardModule;
 import org.eclipse.che.ide.command.CommandApiModule;
@@ -138,9 +139,11 @@ public class CoreGinModule extends AbstractGinModule {
 
     GinMapBinder.newMapBinder(binder(), String.class, FqnProvider.class);
 
+    GinMapBinder.newMapBinder(binder(), String.class, VcsChangeMarkerRenderFactory.class);
+
     bind(EventBus.class).to(SimpleEventBus.class).in(Singleton.class);
 
-    //TODO: don't remove binding until not fix Codenvy and other packaging
+    // TODO: don't remove binding until not fix Codenvy and other packaging
     bind(String.class)
         .annotatedWith(RestContext.class)
         .toProvider(RestContextProvider.class)

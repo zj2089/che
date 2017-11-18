@@ -35,6 +35,7 @@ import org.eclipse.che.api.git.params.RmParams;
 import org.eclipse.che.api.git.params.TagCreateParams;
 import org.eclipse.che.api.git.shared.Branch;
 import org.eclipse.che.api.git.shared.BranchListMode;
+import org.eclipse.che.api.git.shared.EditedRegion;
 import org.eclipse.che.api.git.shared.GitUser;
 import org.eclipse.che.api.git.shared.MergeResult;
 import org.eclipse.che.api.git.shared.PullResponse;
@@ -42,10 +43,10 @@ import org.eclipse.che.api.git.shared.PushResponse;
 import org.eclipse.che.api.git.shared.RebaseResponse;
 import org.eclipse.che.api.git.shared.Remote;
 import org.eclipse.che.api.git.shared.RemoteReference;
+import org.eclipse.che.api.git.shared.RevertResult;
 import org.eclipse.che.api.git.shared.Revision;
 import org.eclipse.che.api.git.shared.ShowFileContentResponse;
 import org.eclipse.che.api.git.shared.Status;
-import org.eclipse.che.api.git.shared.StatusFormat;
 import org.eclipse.che.api.git.shared.Tag;
 
 /**
@@ -168,6 +169,15 @@ public interface GitConnection extends Closeable {
    * @see DiffParams
    */
   DiffPage diff(DiffParams params) throws GitException;
+
+  /**
+   * Get list of edited regions (insertions, modifications, removals) of the file.
+   *
+   * @param file path of the file
+   * @return list of {@link EditedRegion} objects that contain type and range of the editing
+   * @throws GitException if any error occurs
+   */
+  List<EditedRegion> getEditedRegions(String file) throws GitException;
 
   /**
    * Show content of the file from specified revision or branch.
@@ -330,13 +340,16 @@ public interface GitConnection extends Closeable {
   void rm(RmParams params) throws GitException;
 
   /**
-   * Get status of working tree.
+   * Get status.
    *
-   * @param format the format of the ouput
+   * @param filter list of paths to filter the status. Status result will include only files witch
+   *     paths are contained in the filter list, or are children of the folder paths that are
+   *     mentioned in the filter list. Unfiltered status of working tree will be returned, if the
+   *     filter list is empty
    * @return status.
    * @throws GitException if any error occurs
    */
-  Status status(StatusFormat format) throws GitException;
+  Status status(List<String> filter) throws GitException;
 
   /**
    * Create new tag.
@@ -387,4 +400,12 @@ public interface GitConnection extends Closeable {
    * @throws GitException if any exception occurs
    */
   String getCurrentBranch() throws GitException;
+
+  /**
+   * Revert the specified commit
+   *
+   * @param commit the commit to revert
+   * @throws GitException if any error occurs
+   */
+  RevertResult revert(String commit) throws GitException;
 }

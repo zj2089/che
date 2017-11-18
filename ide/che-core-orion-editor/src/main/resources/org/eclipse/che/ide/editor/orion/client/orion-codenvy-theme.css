@@ -96,6 +96,11 @@
     background-color: editorGutterLineNumberBackgroundColor;
 }
 
+.orionCodenvy .ruler.vcs {
+    width: 2px;
+    background-color: editorGutterLineNumberBackgroundColor;
+}
+
 .orionCodenvy .ruler.folding {
     background-color: editorBackgroundColor;
     width: 10px;
@@ -103,12 +108,12 @@
 
 .orionCodenvy .ruler.lines {
     background-color: editorGutterLineNumberBackgroundColor;
-    width: 31px;
+    width: 38px;
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
     box-sizing: border-box;
     border-right-style: solid;
-    border-right-width: 4px;
+    border-right-width: 11px;
     border-right-color: transparent;
 }
 
@@ -126,7 +131,9 @@
     font-family: "DejaVu Sans Mono", alternativeFontFamily;
     font-size: 11px;
     color: editorGutterLineNumberColor;
-    line-height: 15px;
+    line-height: 13px;
+    border: 1px solid editorGutterLineNumberBackgroundColor;
+    box-sizing: border-box;
 }
 
 .orionCodenvy .rulerZoomWindow {
@@ -462,3 +469,7 @@
     color: #B985A8;
     font-weight: bold;
 }
+
+.support type propertyName css{
+       color: #00bcd4;
+    }

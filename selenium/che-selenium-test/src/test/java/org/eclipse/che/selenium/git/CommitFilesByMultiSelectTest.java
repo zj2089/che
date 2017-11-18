@@ -20,7 +20,7 @@ import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -80,7 +80,7 @@ public class CommitFilesByMultiSelectTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -195,7 +195,7 @@ public class CommitFilesByMultiSelectTest {
     // check changes in git compare form
     git.clickCompareBtnGitHistory();
     checkChangesIntoCompareForm(CHANGE_CONTENT);
-    closeGitCompareForm();
+    git.closeGitCompareForm();
     git.waitHistoryFormToOpen();
     git.closeGitHistoryForm();
     projectExplorer.selectItem(PROJECT_NAME);
@@ -209,7 +209,7 @@ public class CommitFilesByMultiSelectTest {
     git.selectFileInChangedFilesTreePanel("AppController.java");
     git.clickOnGroupCompareButton();
     checkChangesIntoCompareForm(CHANGE_CONTENT);
-    closeGitCompareForm();
+    git.closeGitCompareForm();
     git.closeGroupGitCompareForm();
     git.closeGitHistoryForm();
 
@@ -268,7 +268,7 @@ public class CommitFilesByMultiSelectTest {
     git.selectFileInChangedFilesTreePanel("file.css");
     git.clickOnGroupCompareButton();
     checkChangesIntoCompareForm(CHANGE_CONTENT);
-    closeGitCompareForm();
+    git.closeGitCompareForm();
     git.waitGroupGitCompareIsOpen();
     git.selectFileInChangedFilesTreePanel("file.js");
     git.clickOnGroupCompareButton();
@@ -277,13 +277,7 @@ public class CommitFilesByMultiSelectTest {
 
   private void checkChangesIntoCompareForm(String expText) {
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor(expText);
     git.waitTextNotPresentIntoCompareRightEditor(expText);
-  }
-
-  private void closeGitCompareForm() {
-    ide.driver().switchTo().parentFrame();
-    git.closeGitCompareForm();
   }
 }

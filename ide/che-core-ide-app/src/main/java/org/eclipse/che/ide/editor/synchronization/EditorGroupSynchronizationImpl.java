@@ -10,6 +10,7 @@
  */
 package org.eclipse.che.ide.editor.synchronization;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.EMERGE_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.DisplayMode.NOT_EMERGE_MODE;
 import static org.eclipse.che.ide.api.notification.StatusNotification.Status.FAIL;
@@ -73,7 +74,7 @@ public class EditorGroupSynchronizationImpl
     EditorPartPresenter groupMember = synchronizedEditors.keySet().iterator().next();
     if ((groupMember instanceof EditorWithAutoSave)
         && !((EditorWithAutoSave) groupMember).isAutoSaveEnabled()) {
-      //group can contains unsaved content - we need update content for the editor
+      // group can contains unsaved content - we need update content for the editor
       Document editorDocument = documentHandle.getDocument();
       Document groupMemberDocument = getDocumentHandleFor(groupMember).getDocument();
 
@@ -92,6 +93,25 @@ public class EditorGroupSynchronizationImpl
   public void onActiveEditorChanged(@NotNull EditorPartPresenter activeEditor) {
     groupLeaderEditor = activeEditor;
     resolveAutoSave();
+  }
+
+  @Override
+  public void onEditorDirtyStateChanged(EditorPartPresenter changedEditor) {
+    boolean hasEditorsToSync = synchronizedEditors.keySet().size() > 1;
+    if (!hasEditorsToSync || groupLeaderEditor == null || groupLeaderEditor != changedEditor) {
+      // we sync 'dirty' state of editors when content of an ACTIVE editor has saved
+      return;
+    }
+
+    synchronizedEditors
+        .keySet()
+        .forEach(
+            editor -> {
+              if (editor != groupLeaderEditor && editor instanceof TextEditor) {
+                ((TextEditor) editor).getEditorWidget().markClean();
+                ((TextEditor) editor).updateDirtyState(false);
+              }
+            });
   }
 
   @Override
@@ -144,7 +164,7 @@ public class EditorGroupSynchronizationImpl
   }
 
   @Override
-  public void onFileContentUpdate(final FileContentUpdateEvent event) {
+  public void onFileContentUpdate(FileContentUpdateEvent event) {
     if (synchronizedEditors.keySet().isEmpty()) {
       return;
     }
@@ -159,13 +179,54 @@ public class EditorGroupSynchronizationImpl
       return;
     }
 
+    if (!(virtualFile instanceof File)) {
+      updateContent(virtualFile, false);
+      return;
+    }
+
+    File file = (File) virtualFile;
+
+    String eventModificationStamp = event.getModificationStamp();
+    String currentModificationStamp = file.getModificationStamp();
+    if (isNullOrEmpty(currentModificationStamp) || isNullOrEmpty(eventModificationStamp)) {
+      updateContent(virtualFile, false);
+      return;
+    }
+
+    if (!Objects.equals(eventModificationStamp, currentModificationStamp)) {
+      updateContent(virtualFile, true);
+    }
+  }
+
+  private void updateContent(VirtualFile virtualFile, boolean externalOperation) {
+    final DocumentHandle documentHandle = getDocumentHandleFor(groupLeaderEditor);
+    if (documentHandle == null) {
+      return;
+    }
+
     documentStorage.getDocument(
         virtualFile,
         new DocumentStorage.DocumentCallback() {
 
           @Override
-          public void onDocumentReceived(final String content) {
-            updateContent(content, event.getModificationStamp(), virtualFile);
+          public void onDocumentReceived(String newContent) {
+            Document document = documentHandle.getDocument();
+
+            String oldContent = document.getContents();
+            if (Objects.equals(newContent, oldContent)) {
+              return;
+            }
+
+            TextPosition cursorPosition = document.getCursorPosition();
+            replaceContent(document, newContent, oldContent, cursorPosition);
+
+            if (externalOperation) {
+              notificationManager.notify(
+                  "External operation",
+                  "File '" + virtualFile.getName() + "' is updated",
+                  SUCCESS,
+                  NOT_EMERGE_MODE);
+            }
           }
 
           @Override
@@ -177,44 +238,6 @@ public class EditorGroupSynchronizationImpl
                 EMERGE_MODE);
           }
         });
-  }
-
-  private void updateContent(
-      String newContent, String eventModificationStamp, VirtualFile virtualFile) {
-    final DocumentHandle documentHandle = getDocumentHandleFor(groupLeaderEditor);
-    if (documentHandle == null) {
-      return;
-    }
-
-    final Document document = documentHandle.getDocument();
-    final String oldContent = document.getContents();
-    if (Objects.equals(newContent, oldContent)) {
-      return;
-    }
-
-    final TextPosition cursorPosition = document.getCursorPosition();
-    if (!(virtualFile instanceof File)) {
-      replaceContent(document, newContent, oldContent, cursorPosition);
-      return;
-    }
-
-    final File file = (File) virtualFile;
-    final String currentStamp = file.getModificationStamp();
-
-    if (eventModificationStamp == null) {
-      replaceContent(document, newContent, oldContent, cursorPosition);
-      return;
-    }
-
-    if (!Objects.equals(eventModificationStamp, currentStamp)) {
-      replaceContent(document, newContent, oldContent, cursorPosition);
-
-      notificationManager.notify(
-          "External operation",
-          "File '" + file.getName() + "' is updated",
-          SUCCESS,
-          NOT_EMERGE_MODE);
-    }
   }
 
   private void replaceContent(

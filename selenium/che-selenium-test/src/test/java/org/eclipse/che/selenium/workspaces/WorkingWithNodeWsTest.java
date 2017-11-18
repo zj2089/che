@@ -18,7 +18,7 @@ import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
 import org.eclipse.che.selenium.core.constant.TestStacksConstants;
 import org.eclipse.che.selenium.core.constant.TestWorkspaceConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.Consoles;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -46,7 +46,7 @@ public class WorkingWithNodeWsTest {
 
   private String currentWindow;
 
-  @Inject private DefaultTestUser defaultTestUser;
+  @Inject private TestUser defaultTestUser;
   @Inject private Ide ide;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private Loader loader;
@@ -138,15 +138,15 @@ public class WorkingWithNodeWsTest {
 
   /** check main elements of the AngularJS-Yeoman */
   public void checkAngularYeomanAppl() {
-    new WebDriverWait(ide.driver(), LOAD_PAGE_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath("//h1[text()=\"'Allo, 'Allo!\"]")));
-    new WebDriverWait(ide.driver(), LOAD_PAGE_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(
             ExpectedConditions.visibilityOfElementLocated(
                 By.xpath("//img[@src='images/yeoman.png']")));
-    new WebDriverWait(ide.driver(), LOAD_PAGE_TIMEOUT_SEC)
+    new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC)
         .until(ExpectedConditions.visibilityOfElementLocated(By.linkText("Splendid!")))
         .click();
   }

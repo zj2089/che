@@ -12,14 +12,13 @@ package org.eclipse.che.selenium.git;
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
@@ -54,7 +53,7 @@ public class FetchUpdatesAndMergeRemoteBranchIntoLocalTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -73,18 +72,13 @@ public class FetchUpdatesAndMergeRemoteBranchIntoLocalTest {
   @Inject private CodenvyEditor editor;
   @Inject private ImportProjectFromLocation importProject;
   @Inject private Wizard projectWizard;
-  @Inject private TestSshServiceClient testSshServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
   @Inject private TestGitHubServiceClient gitHubClientService;
 
   @BeforeClass
   public void prepare() throws Exception {
-    try {
-      String publicKey = testSshServiceClient.generateGithubKey();
-      gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-    } catch (ConflictException ignored) {
-      // already generated
-    }
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
 
     ide.open(ws);
@@ -176,7 +170,8 @@ public class FetchUpdatesAndMergeRemoteBranchIntoLocalTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(PUSH_MSG);
 
-    // Open second project and fetch changes from master remote branch of test remote repository to master local branch.
+    // Open second project and fetch changes from master remote branch of test remote repository to
+    // master local branch.
     projectExplorer.openItemByPath(PROJECT_1);
     loader.waitOnClosed();
     projectExplorer.selectItem(PROJECT_2);
@@ -211,7 +206,7 @@ public class FetchUpdatesAndMergeRemoteBranchIntoLocalTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(MERGE_MESSAGE_1);
     events.waitExpectedMessage(MERGE_MESSAGE_2);
-    editor.closeAllTabs(); //TODO clarify the behaviour of the 'git merge'
+    editor.closeAllTabs(); // TODO clarify the behaviour of the 'git merge'
 
     // Checking merging
     events.clickMinimizeButtonEventsPanel();

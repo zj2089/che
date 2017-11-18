@@ -29,7 +29,7 @@ import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -68,9 +68,9 @@ public class PullRequestPluginTest {
   private WebDriverWait webDriverWait;
   private String factoryWsName;
 
-  @Inject private TestWorkspace ws;
+  @Inject private TestWorkspace testWorkspace;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -80,7 +80,7 @@ public class PullRequestPluginTest {
   @Named("github.password")
   private String gitHubPassword;
 
-  @Inject private DefaultTestUser user;
+  @Inject private TestUser user;
   @Inject private Loader loader;
   @Inject private ImportProjectFromLocation importWidget;
   @Inject private Menu menu;
@@ -98,8 +98,8 @@ public class PullRequestPluginTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    webDriverWait = new WebDriverWait(ide.driver(), LOAD_PAGE_TIMEOUT_SEC);
-    ide.open(ws);
+    webDriverWait = new WebDriverWait(seleniumWebDriver, LOAD_PAGE_TIMEOUT_SEC);
+    ide.open(testWorkspace);
     // add committer info
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
     // authorize application on GitHub
@@ -113,9 +113,7 @@ public class PullRequestPluginTest {
 
   @AfterClass
   public void tearDown() throws Exception {
-    if (factoryWsName != null) {
-      workspaceServiceClient.delete(factoryWsName, user.getName());
-    }
+    workspaceServiceClient.deleteFactoryWorkspaces(testWorkspace.getName(), user.getName());
 
     List<String> listPullRequest =
         gitHubClientService.getNumbersOfOpenedPullRequests(
@@ -127,14 +125,14 @@ public class PullRequestPluginTest {
 
   @Test(priority = 0)
   public void switchingBetweenProjects() {
-    //import first project
+    // import first project
     explorer.waitProjectExplorer();
     menu.runCommand(TestMenuCommandsConstants.Workspace.WORKSPACE, IMPORT_PROJECT);
     String firstProjectUrl =
         "https://github.com/" + gitHubUsername + "/pull-request-plugin-test.git";
     importWidget.waitAndTypeImporterAsGitInfo(firstProjectUrl, FIRST_PROJECT_NAME);
     configureTypeOfProject();
-    //import second project
+    // import second project
     explorer.waitProjectExplorer();
     menu.runCommand(TestMenuCommandsConstants.Workspace.WORKSPACE, IMPORT_PROJECT);
     String secondProjectUrl = "https://github.com/" + gitHubUsername + "/Spring_Project.git";
@@ -161,13 +159,13 @@ public class PullRequestPluginTest {
     explorer.openItemByPath(FIRST_PROJECT_NAME);
     explorer.openItemByPath(FIRST_PROJECT_NAME + "/README.md");
 
-    //change content
+    // change content
     editor.waitActiveEditor();
     editor.deleteAllContent();
     editor.setCursorToDefinedLineAndChar(1, 1);
     editor.typeTextIntoEditor("Time: " + TIME);
 
-    //create branch
+    // create branch
     pullRequestPanel.waitOpenPanel();
     pullRequestPanel.selectBranch(CREATE_BRANCH);
     valueDialog.waitFormToOpen();
@@ -177,7 +175,7 @@ public class PullRequestPluginTest {
     pullRequestPanel.enterComment(COMMENT);
     pullRequestPanel.enterTitle(TITLE);
 
-    //commit change and create pull request
+    // commit change and create pull request
     pullRequestPanel.clickCreatePRBtn();
     pullRequestPanel.clickOkCommitBtn();
     pullRequestPanel.waitStatusOk(BRANCH_PUSHED_ON_YOUR_ORIGIN);
@@ -210,7 +208,7 @@ public class PullRequestPluginTest {
 
   @Test(priority = 3)
   public void checkFactoryOnGitHub() {
-    String currentWindow = ide.driver().getWindowHandle();
+    String currentWindow = seleniumWebDriver.getWindowHandle();
     pullRequestPanel.openPullRequestOnGitHub();
     seleniumWebDriver.switchToNoneCurrentWindow(currentWindow);
     checkGitHubUserPage();

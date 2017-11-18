@@ -54,17 +54,23 @@ public interface DebuggerLocalizationConstant extends com.google.gwt.i18n.client
   @Key("stepOut")
   String stepOut();
 
+  @Key("runToCursor")
+  String runToCursor();
+
   @Key("suspend")
   String suspend();
 
-  @Key("changeVariableValue")
-  String changeVariableValue();
+  @Key("editDebugVariable")
+  String editDebugVariable();
 
   @Key("evaluateExpression")
   String evaluateExpression();
 
   @Key("showHideDebuggerPanel")
   String showHideDebuggerPanel();
+
+  @Key("breakpointConfiguration")
+  String breakpointConfiguration();
 
   /* actions descriptions */
   @Key("editDebugConfigurationsActionDescription")
@@ -88,20 +94,26 @@ public interface DebuggerLocalizationConstant extends com.google.gwt.i18n.client
   @Key("stepOutDescription")
   String stepOutDescription();
 
+  @Key("runToCursorDescription")
+  String runToCursorDescription();
+
   @Key("suspendDescription")
   String suspendDescription();
 
   @Key("deleteAllBreakpointsDescription")
   String deleteAllBreakpointsDescription();
 
-  @Key("changeVariableValueDescription")
-  String changeVariableValueDescription();
+  @Key("editDebugVariableDescription")
+  String editDebugVariableDescription();
 
   @Key("evaluateExpressionDescription")
   String evaluateExpressionDescription();
 
   @Key("showHideDebuggerPanelDescription")
   String showHideDebuggerPanelDescription();
+
+  @Key("breakpointConfigurationDescription")
+  String breakpointConfigurationDescription();
 
   /* messages */
   @Key("debugger.connecting.title")
@@ -127,6 +139,10 @@ public interface DebuggerLocalizationConstant extends com.google.gwt.i18n.client
 
   @Key("failed.to.get.variable.value.title")
   String failedToGetVariableValueTitle();
+
+  /* ChangeValueView */
+  @Key("view.breakpoint.configuration.title")
+  String breakpointConfigurationTitle();
 
   /* ChangeValueView */
   @Key("view.changeValue.title")
@@ -199,4 +215,50 @@ public interface DebuggerLocalizationConstant extends com.google.gwt.i18n.client
 
   @Key("view.editConfigurations.saveChanges.discard")
   String editConfigurationsSaveChangesDiscard();
+
+  @Key("debugger.frames.title")
+  String debuggerFramesTitle();
+
+  /* Breakpoint Configuration */
+  @Key("view.breakpointConfiguration.condition")
+  String viewBreakpointConfigurationCondition();
+
+  @Key("view.breakpointConfiguration.hitCount")
+  String viewBreakpointConfigurationHitCount();
+
+  @Key("view.breakpointConfiguration.applyButton")
+  String viewBreakpointConfigurationApplyButton();
+
+  @Key("add.watch.expression")
+  String addWatchExpression();
+
+  @Key("remove.watch.expression")
+  String removeWatchExpression();
+
+  @Key("addWatchExpressionDescription")
+  String addWatchExpressionDescription();
+
+  @Key("removeWatchExpressionDescription")
+  String removeWatchExpressionDescription();
+
+  @Key("add.expression.view.dialog.title")
+  String addExpressionViewDialogTitle();
+
+  @Key("add.expression.view.save.button.title")
+  String addExpressionViewSaveButtonTitle();
+
+  @Key("add.expression.view.cancel.button.title")
+  String addExpressionViewCancelButtonTitle();
+
+  @Key("edit.expression.view.dialog.title")
+  String editExpressionViewDialogTitle();
+
+  @Key("edit.expression.view.save.button.title")
+  String editExpressionViewSaveButtonTitle();
+
+  @Key("edit.expression.view.cancel.button.title")
+  String editExpressionViewCancelButtonTitle();
+
+  @Key("edit.expression.view.expression.field.title")
+  String editExpressionViewExpressionFieldTitle();
 }

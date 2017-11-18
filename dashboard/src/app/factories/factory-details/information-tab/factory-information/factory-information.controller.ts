@@ -11,6 +11,7 @@
 'use strict';
 import {CheAPI} from '../../../../../components/api/che-api.factory';
 import {CheNotification} from '../../../../../components/notification/che-notification.factory';
+import {ConfirmDialogService} from '../../../../../components/service/confirm-dialog/confirm-dialog.service';
 
 /**
  * Controller for a factory information.
@@ -18,40 +19,44 @@ import {CheNotification} from '../../../../../components/notification/che-notifi
  */
 export class FactoryInformationController {
 
-  private  confirmDialogService: any;
+  private confirmDialogService: ConfirmDialogService;
   private cheAPI: CheAPI;
   private cheNotification: CheNotification;
   private $location: ng.ILocationService;
   private $log: ng.ILogService;
+  private $q: ng.IQService;
   private $timeout: ng.ITimeoutService;
-  private lodash: _.LoDashStatic;
+  private lodash: any;
   private $filter: ng.IFilterService;
 
   private timeoutPromise: ng.IPromise<any>;
   private editorLoadedPromise: ng.IPromise<any>;
   private editorOptions: any;
-  private factoryInformationForm: any;
+  private factoryInformationForm: ng.IFormController;
   private stackRecipeMode: string;
   private factory: che.IFactory;
   private copyOriginFactory: che.IFactory;
-  private factoryContent: any;
+  private factoryContent: string;
   private workspaceImportedRecipe: any;
   private environmentName: string;
   private workspaceName: string;
   private stackId: string;
   private workspaceConfig: any;
+  private origName: string;
+  private isEditorContentChanged: boolean = false;
 
   /**
    * Default constructor that is using resource injection
    * @ngInject for Dependency injection
    */
   constructor($scope: ng.IScope, cheAPI: CheAPI, cheNotification: CheNotification, $location: ng.ILocationService, $log: ng.ILogService,
-              $timeout: ng.ITimeoutService, lodash: _.LoDashStatic, $filter: ng.IFilterService, $q: ng.IQService, confirmDialogService: any) {
+              $timeout: ng.ITimeoutService, lodash: any, $filter: ng.IFilterService, $q: ng.IQService, confirmDialogService: ConfirmDialogService) {
     this.cheAPI = cheAPI;
     this.cheNotification = cheNotification;
     this.$location = $location;
     this.$log = $log;
     this.$timeout = $timeout;
+    this.$q = $q;
     this.lodash = lodash;
     this.$filter = $filter;
     this.confirmDialogService = confirmDialogService;
@@ -68,6 +73,11 @@ export class FactoryInformationController {
     this.editorOptions = {
       onLoad: ((instance: any) => {
         editorLoadedDefer.resolve(instance);
+        if (instance) {
+          instance.on('blur', () => {
+            this.showUpdateIfNecessaryDialog();
+          });
+        }
       })
     };
 
@@ -89,10 +99,13 @@ export class FactoryInformationController {
       return;
     }
 
+    this.isEditorContentChanged = false;
+
     this.workspaceName = this.factory.workspace.name;
     this.environmentName = this.factory.workspace.defaultEnv;
 
     this.copyOriginFactory = angular.copy(this.factory);
+    this.origName = this.factory.name;
     if (this.copyOriginFactory.links) {
       delete this.copyOriginFactory.links;
     }
@@ -100,7 +113,7 @@ export class FactoryInformationController {
     let factoryContent = this.$filter('json')(this.copyOriginFactory);
     if (factoryContent !== this.factoryContent) {
       if (!this.factoryContent) {
-        this.editorLoadedPromise.then((instance) => {
+        this.editorLoadedPromise.then((instance: any) => {
           this.$timeout(() => {
             instance.refresh();
           }, 500);
@@ -139,7 +152,27 @@ export class FactoryInformationController {
   }
 
   /**
-   * Update factory data.
+   * Update factory name.
+   *
+   * @param {string} name new factory name.
+   */
+  updateFactoryName(name: string): void {
+    this.copyOriginFactory.name = name;
+    this.updateFactory();
+  }
+
+  /**
+   * Update workspace name.
+   *
+   * @param {string} name new workspace name.
+   */
+  updateWorkspaceName(name: string): void {
+    this.copyOriginFactory.workspace.name = name;
+    this.updateFactory();
+  }
+
+  /**
+   * Save factory data.
    */
   updateFactory(): void {
     this.factoryContent = this.$filter('json')(this.copyOriginFactory);
@@ -152,6 +185,23 @@ export class FactoryInformationController {
     this.timeoutPromise = this.$timeout(() => {
       this.doUpdateFactory(this.copyOriginFactory);
     }, 500);
+  }
+
+  /**
+   * Shows confirmation dialog when editor's content is changes.
+   *
+   * @returns {angular.IPromise<any>}
+   */
+  showUpdateIfNecessaryDialog(): ng.IPromise<any> {
+    if (this.isEditorContentChanged === false) {
+      return this.$q.when();
+    }
+
+    const title = 'Warning',
+      content = `You have unsaved changes in JSON configuration. Would you like to save changes now?`;
+    return this.confirmDialogService.showConfirmDialog(title, content, 'Continue').then(() => {
+      this.updateFactoryContent();
+    });
   }
 
   /**
@@ -188,13 +238,15 @@ export class FactoryInformationController {
   }
 
   /**
-   * Handler for factory editor focus event.
+   * Handler for factory editor 'change' event.
    */
-  factoryEditorOnFocus(): void {
+  factoryEditorOnChange(): void {
     if (this.timeoutPromise) {
       this.$timeout.cancel(this.timeoutPromise);
-      this.doUpdateFactory(this.copyOriginFactory);
     }
+    this.timeoutPromise = this.$timeout(() => {
+      this.isEditorContentChanged = this.factoryContent !== this.$filter('json')(this.copyOriginFactory);
+    }, 200);
   }
 
   /**

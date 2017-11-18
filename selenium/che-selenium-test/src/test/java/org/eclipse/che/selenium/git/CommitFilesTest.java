@@ -19,7 +19,7 @@ import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -60,7 +60,7 @@ public class CommitFilesTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -111,7 +111,8 @@ public class CommitFilesTest {
     git.waitItemCheckBoxToBeSelectedInCommitWindow(
         "webapp", "WEB-INF", "jsp", "guess_num.jsp", "web.xml", "spring-servlet.xml", "index.jsp");
 
-    // unselect folder, select nested file, check that all parent folders of the file are also selected
+    // unselect folder, select nested file, check that all parent folders of the file are also
+    // selected
     git.clickItemCheckBoxInCommitWindow("webapp");
     git.clickItemCheckBoxInCommitWindow("guess_num.jsp");
     git.waitItemCheckBoxToBeSelectedInCommitWindow("webapp", "WEB-INF", "jsp", "guess_num.jsp");
@@ -122,7 +123,8 @@ public class CommitFilesTest {
     git.waitItemCheckBoxToBeUnSelectedInCommitWindow(
         "webapp", "WEB-INF", "jsp", "guess_num.jsp", "web.xml", "spring-servlet.xml", "index.jsp");
 
-    //select parent folder, unselect nested file, check that all nodes are selected except unselected file and his folder
+    // select parent folder, unselect nested file, check that all nodes are selected except
+    // unselected file and his folder
     git.clickItemCheckBoxInCommitWindow("webapp");
     git.clickItemCheckBoxInCommitWindow("guess_num.jsp");
     git.waitItemCheckBoxToBeSelectedInCommitWindow("webapp", "WEB-INF");
@@ -283,10 +285,8 @@ public class CommitFilesTest {
   private void checkChangesIntoCompareForm(String expText) {
     git.clickOnGroupCompareButton();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor(expText);
     git.waitTextNotPresentIntoCompareRightEditor(expText);
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
   }
 }

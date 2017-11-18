@@ -10,6 +10,9 @@
  */
 package org.eclipse.che.selenium.debugger;
 
+import static org.eclipse.che.selenium.pageobject.debug.DebugPanel.DebuggerActionButtons.BTN_DISCONNECT;
+import static org.eclipse.che.selenium.pageobject.debug.DebugPanel.DebuggerActionButtons.RESUME_BTN_ID;
+
 import com.google.inject.Inject;
 import java.nio.file.Paths;
 import org.eclipse.che.selenium.core.client.TestCommandServiceClient;
@@ -99,7 +102,7 @@ public class InnerClassAndLambdaDebuggingTest {
     // set breakpoints
     editor.waitActiveEditor();
     editor.setCursorToLine(41);
-    editor.setBreakPointAndWaitInactiveState(41);
+    editor.setInactiveBreakpoint(41);
     menu.runCommandByXpath(
         TestMenuCommandsConstants.Run.RUN_MENU,
         TestMenuCommandsConstants.Run.DEBUG,
@@ -107,62 +110,61 @@ public class InnerClassAndLambdaDebuggingTest {
             "//*[@id=\"%1$s/%2$s\" or @id=\"topmenu/Run/Debug/Debug '%2$s'\"]",
             TestMenuCommandsConstants.Run.DEBUG, PROJECT));
     notificationPopup.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
-    editor.waitBreakPointWithActiveState(41);
+    editor.waitActiveBreakpoint(41);
   }
 
   @AfterMethod
   public void stopDebug() {
     debugPanel.removeAllBreakpoints();
-    menu.runCommand(
-        TestMenuCommandsConstants.Run.RUN_MENU, TestMenuCommandsConstants.Run.END_DEBUG_SESSION);
+    debugPanel.clickOnButton(BTN_DISCONNECT);
   }
 
   @Test
   public void shouldDebugAnonymousClass() {
     // when
     editor.setCursorToLine(37);
-    editor.setBreakPointAndWaitActiveState(37);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    editor.setBreakpoint(37);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(37);
-    debugPanel.waitTextInVariablesPanel("anonym: \"App anonym\"");
+    editor.waitActiveBreakpoint(37);
+    debugPanel.waitTextInVariablesPanel("anonym=\"App anonym\"");
   }
 
   @Test(priority = 1)
   public void shouldDebugMethodLocalInnerClass() {
     // when
     editor.setCursorToLine(53);
-    editor.setBreakPointAndWaitActiveState(53);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    editor.setBreakpoint(53);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(53);
-    debugPanel.waitTextInVariablesPanel("methodValue: \"App method local inner test\"");
+    editor.waitActiveBreakpoint(53);
+    debugPanel.waitTextInVariablesPanel("methodValue=\"App method local inner test\"");
   }
 
   @Test(priority = 2)
   public void shouldDebugInnerClass() {
     // when
     editor.setCursorToLine(64);
-    editor.setBreakPointAndWaitActiveState(64);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    editor.setBreakpoint(64);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(64);
-    debugPanel.waitTextInVariablesPanel("innerValue: \"App inner value\"");
+    editor.waitActiveBreakpoint(64);
+    debugPanel.waitTextInVariablesPanel("innerValue=\"App inner value\"");
   }
 
   @Test(priority = 3)
   public void shouldDebugStaticInnerClass() {
     // when
     editor.setCursorToLine(72);
-    editor.setBreakPointAndWaitActiveState(72);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    editor.setBreakpoint(72);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(72);
-    debugPanel.waitTextInVariablesPanel("staticInnerValue: \"App static inner value\"");
+    editor.waitActiveBreakpoint(72);
+    debugPanel.waitTextInVariablesPanel("staticInnerValue=\"App static inner value\"");
   }
 
   @Test(priority = 4)
@@ -171,24 +173,24 @@ public class InnerClassAndLambdaDebuggingTest {
     editor.setCursorToLine(79);
     editor.setBreakPointAndWaitActiveState(79);
     editor.setBreakPointAndWaitActiveState(87);
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(79);
-    debugPanel.waitTextInVariablesPanel("j: 1");
+    editor.waitActiveBreakpoint(79);
+    debugPanel.waitTextInVariablesPanel("j=1");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(79);
-    debugPanel.waitTextInVariablesPanel("j: 2");
+    editor.waitActiveBreakpoint(79);
+    debugPanel.waitTextInVariablesPanel("j=2");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(RESUME_BTN_ID);
 
     // then
-    editor.waitBreakPointWithActiveState(87);
-    debugPanel.waitTextInVariablesPanel("j: 2");
+    editor.waitActiveBreakpoint(87);
+    debugPanel.waitTextInVariablesPanel("j=2");
   }
 }

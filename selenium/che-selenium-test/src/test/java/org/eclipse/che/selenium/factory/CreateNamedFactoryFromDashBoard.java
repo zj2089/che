@@ -11,16 +11,16 @@
 package org.eclipse.che.selenium.factory;
 
 import static org.eclipse.che.selenium.core.constant.TestGitConstants.CONFIGURING_PROJECT_AND_CLONING_SOURCE_CODE;
-import static org.eclipse.che.selenium.pageobject.dashboard.DashboardFactory.SourcesTypes.WORKSPACES;
 
 import com.google.inject.Inject;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.concurrent.ExecutionException;
+import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
+import org.eclipse.che.selenium.core.client.TestFactoryServiceClient;
 import org.eclipse.che.selenium.core.client.TestProjectServiceClient;
+import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.Events;
 import org.eclipse.che.selenium.pageobject.Ide;
@@ -32,16 +32,18 @@ import org.eclipse.che.selenium.pageobject.ProjectExplorer;
 import org.eclipse.che.selenium.pageobject.Wizard;
 import org.eclipse.che.selenium.pageobject.dashboard.Dashboard;
 import org.eclipse.che.selenium.pageobject.dashboard.DashboardFactory;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /** @author Musienko Maxim */
 public class CreateNamedFactoryFromDashBoard {
   private static final String PROJECT_NAME = CreateNamedFactoryFromDashBoard.class.getSimpleName();
+  private static final String FACTORY_NAME = NameGenerator.generate("factory", 4);
 
   @Inject private TestWorkspace testWorkspace;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser user;
+  @Inject private TestUser user;
   @Inject private DashboardFactory dashboardFactory;
   @Inject private Dashboard dashboard;
   @Inject private LoadingBehaviorPage loadingBehaviorPage;
@@ -53,6 +55,8 @@ public class CreateNamedFactoryFromDashBoard {
   @Inject private TestProjectServiceClient testProjectServiceClient;
   @Inject private Wizard wizard;
   @Inject private Menu menu;
+  @Inject private TestWorkspaceServiceClient workspaceServiceClient;
+  @Inject private TestFactoryServiceClient factoryServiceClient;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -63,18 +67,23 @@ public class CreateNamedFactoryFromDashBoard {
     wizard.selectProjectAndCreate(Wizard.SamplesName.WEB_JAVA_SPRING, PROJECT_NAME);
   }
 
+  @AfterClass
+  public void tearDown() throws Exception {
+    workspaceServiceClient.deleteFactoryWorkspaces(testWorkspace.getName(), user.getName());
+    factoryServiceClient.deleteFactory(FACTORY_NAME);
+  }
+
   @Test
   public void createFactoryFromDashBoard() throws ExecutionException, InterruptedException {
-    String currentWin = ide.driver().getWindowHandle();
+    String currentWin = seleniumWebDriver.getWindowHandle();
     dashboard.open();
     dashboardFactory.selectFactoryOnNavBar();
     dashboardFactory.waitAllFactoriesPage();
     dashboardFactory.clickOnAddFactoryBtn();
-    dashboardFactory.waitSelectSourceWidgetAndSelect(WORKSPACES.toString());
     dashboardFactory.selectWorkspaceForCreation(testWorkspace.getName());
+    dashboardFactory.setFactoryName(FACTORY_NAME);
     dashboardFactory.clickOnCreateFactoryBtn();
     dashboardFactory.waitJsonFactoryIsNotEmpty();
-    dashboardFactory.setNameFactory(new SimpleDateFormat("yyyy_MM_dd_hh_mm_ss").format(new Date()));
     dashboard.waitNotificationIsClosed();
     dashboardFactory.clickFactoryIDUrl();
     seleniumWebDriver.switchToNoneCurrentWindow(currentWin);

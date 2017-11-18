@@ -16,16 +16,17 @@ import org.eclipse.che.api.git.shared.Branch;
 import org.eclipse.che.api.git.shared.BranchListMode;
 import org.eclipse.che.api.git.shared.CheckoutRequest;
 import org.eclipse.che.api.git.shared.DiffType;
+import org.eclipse.che.api.git.shared.EditedRegion;
 import org.eclipse.che.api.git.shared.LogResponse;
 import org.eclipse.che.api.git.shared.MergeResult;
 import org.eclipse.che.api.git.shared.PullResponse;
 import org.eclipse.che.api.git.shared.PushResponse;
 import org.eclipse.che.api.git.shared.Remote;
 import org.eclipse.che.api.git.shared.ResetRequest.ResetType;
+import org.eclipse.che.api.git.shared.RevertResult;
 import org.eclipse.che.api.git.shared.Revision;
 import org.eclipse.che.api.git.shared.ShowFileContentResponse;
 import org.eclipse.che.api.git.shared.Status;
-import org.eclipse.che.api.git.shared.StatusFormat;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.ide.resource.Path;
@@ -287,6 +288,14 @@ public interface GitServiceClient {
       boolean cached);
 
   /**
+   * Get list of edited regions (insertions, modifications, removals) of the file.
+   *
+   * @param project project (root of GIT repository)
+   * @param filePath path to the file
+   */
+  Promise<List<EditedRegion>> getEditedRegions(Path project, Path filePath);
+
+  /**
    * Get the file content from specified revision or branch.
    *
    * @param project project configuration of root GIT repository
@@ -345,17 +354,20 @@ public interface GitServiceClient {
    * </pre>
    *
    * @param project project (root of GIT repository)
-   * @param format to show in short format or not
    */
-  Promise<String> statusText(Path project, StatusFormat format);
+  Promise<String> statusText(Path project);
 
   /**
-   * Returns the current working tree status.
+   * Returns the current status.
    *
    * @param project the project.
+   * @param filter list of paths to filter the status. Status result will include only files witch
+   *     paths are contained in the filter list, or are children of the folder paths that are
+   *     mentioned in the filter list. Unfiltered status of working tree will be returned, if the
+   *     filter list is empty
    * @return the promise which either resolves working tree status or rejects with an error
    */
-  Promise<Status> getStatus(Path project);
+  Promise<Status> getStatus(Path project, List<String> filter);
 
   /**
    * Remove the git repository from given path.
@@ -364,4 +376,12 @@ public interface GitServiceClient {
    * @return the promise with success status
    */
   Promise<Void> deleteRepository(Path project);
+
+  /**
+   * Revert the specified commit
+   *
+   * @param project project (root of GIT repository)
+   * @param commit commit to revert
+   */
+  Promise<RevertResult> revert(Path project, String commit);
 }

@@ -1,6 +1,7 @@
 node default {
   ##################################################################################################
   $che_ip = getValue("CHE_HOST", "localhost")
+  $che_protocol = getValue("CHE_HOST_PROTOCOL","http")
   $che_port = getValue("CHE_PORT", "8080")
   $che_instance = getValue("CHE_INSTANCE","/tmp/che")
   $che_config = getValue("CHE_CONFIG","/path/to/che/che/puppet/sources")
@@ -13,6 +14,7 @@ node default {
   $docker_host = getValue("DOCKER_HOST","tcp://localhost:2375")
   $che_user = getValue("CHE_USER","root")
   $che_server_xmx = getValue("CHE_SERVER_XMX","2048")
+  $che_server_url = getValue("CHE_SERVER_URL", "${che_protocol}://${che_ip}:${che_port}")
 
   ###############################
   # Http proxy configuration
@@ -60,6 +62,10 @@ node default {
   $che_pg_username = getValue("CHE_POSTGRES_USERNAME", "pgche")
   $che_pg_password = getValue("CHE_POSTGRES_PASSWORD", "pgchepassword")
   $che_pg_database = getValue("CHE_POSTGRES_DATABASE", "dbche")
+
+  $system_super_privileged_mode=getValue("SYSTEM_SUPER__PRIVILEGED__MODE", "false")
+
+  $che_keycloak_admin_require_update_password=getValue("CHE_KEYCLOAK_ADMIN_REQUIRE_UPDATE_PASSWORD", "true")
 
   ###############################
   # Include base module

@@ -383,8 +383,10 @@ public class LocalVirtualFileSystem implements VirtualFileSystem {
 
   private void doCopy(LocalVirtualFile from, LocalVirtualFile to) throws ServerException {
     try {
-      // First copy metadata (properties) for source. If we do in this way and fail cause to any i/o or other error client
-      // will see error and may try to copy again. But if we successfully copy tree (or single file) and then fail to copy
+      // First copy metadata (properties) for source. If we do in this way and fail cause to any i/o
+      // or other error client
+      // will see error and may try to copy again. But if we successfully copy tree (or single file)
+      // and then fail to copy
       // metadata client may not try to copy again because copy destination already exists.
 
       final File fromMetadataFile = getMetadataIoFile(from.getPath());
@@ -616,8 +618,8 @@ public class LocalVirtualFileSystem implements VirtualFileSystem {
 
   private void doUpdateContent(LocalVirtualFile virtualFile, InputStream content)
       throws ServerException {
-    try (FileOutputStream fileOut = new FileOutputStream(virtualFile.toIoFile())) {
-      ByteStreams.copy(content, fileOut);
+    try {
+      Files.write(ByteStreams.toByteArray(content), virtualFile.toIoFile());
     } catch (IOException e) {
       String errorMessage = String.format("Unable set content of '%s'", virtualFile.getPath());
       LOG.error(errorMessage + "\n" + e.getMessage(), e);

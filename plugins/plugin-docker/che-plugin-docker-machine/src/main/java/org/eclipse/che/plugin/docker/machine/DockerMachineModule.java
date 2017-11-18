@@ -18,6 +18,7 @@ import com.google.inject.name.Names;
 import java.util.Set;
 import org.eclipse.che.api.core.model.machine.ServerConf;
 import org.eclipse.che.api.environment.server.TypeSpecificEnvironmentParser;
+import org.eclipse.che.plugin.docker.machine.cleaner.AppStatesPreferenceCleaner;
 import org.eclipse.che.plugin.docker.machine.parser.DockerImageEnvironmentParser;
 import org.eclipse.che.plugin.docker.machine.parser.DockerfileEnvironmentParser;
 
@@ -33,13 +34,13 @@ public class DockerMachineModule extends AbstractModule {
     bind(
         org.eclipse.che.plugin.docker.machine.cleaner
             .RemoveWorkspaceFilesAfterRemoveWorkspaceEventSubscriber.class);
+    bind(AppStatesPreferenceCleaner.class);
 
     @SuppressWarnings("unused")
     Multibinder<String> devMachineEnvVars =
         Multibinder.newSetBinder(
                 binder(), String.class, Names.named("machine.docker.dev_machine.machine_env"))
             .permitDuplicates();
-    @SuppressWarnings("unused")
     Multibinder<String> allMachinesEnvVars =
         Multibinder.newSetBinder(binder(), String.class, Names.named("machine.docker.machine_env"))
             .permitDuplicates();
@@ -80,6 +81,16 @@ public class DockerMachineModule extends AbstractModule {
         MapBinder.newMapBinder(binder(), String.class, TypeSpecificEnvironmentParser.class);
     envParserMapBinder.addBinding("dockerfile").to(DockerfileEnvironmentParser.class);
     envParserMapBinder.addBinding("dockerimage").to(DockerImageEnvironmentParser.class);
+
+    allMachinesEnvVars
+        .addBinding()
+        .toProvider(
+            org.eclipse.che.plugin.docker.machine.WsAgentLogDirSetterEnvVariableProvider.class);
+
+    allMachinesEnvVars
+        .addBinding()
+        .toProvider(
+            org.eclipse.che.plugin.docker.machine.ExecAgentLogDirSetterEnvVariableProvider.class);
 
     allMachinesEnvVars
         .addBinding()

@@ -36,11 +36,11 @@ import org.eclipse.che.api.core.NotFoundException;
 import org.eclipse.che.api.core.ServerException;
 import org.eclipse.che.api.core.model.project.NewProjectConfig;
 import org.eclipse.che.api.core.model.project.ProjectConfig;
+import org.eclipse.che.api.core.model.project.ProjectProblem;
 import org.eclipse.che.api.core.model.project.SourceStorage;
 import org.eclipse.che.api.core.notification.EventSubscriber;
 import org.eclipse.che.api.core.util.LineConsumerFactory;
 import org.eclipse.che.api.core.util.ValueHolder;
-import org.eclipse.che.api.project.server.RegisteredProject.Problem;
 import org.eclipse.che.api.project.server.handlers.CreateProjectHandler;
 import org.eclipse.che.api.project.server.importer.ProjectImportOutputWSLineConsumer;
 import org.eclipse.che.api.project.server.importer.ProjectImporter;
@@ -165,8 +165,10 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
 
   @Test
   public void shouldRollbackCreatingBatchProjects() throws Exception {
-    // we should rollback operation of creating batch projects when we have not source code for at least one project
-    // For example: two projects were success created, but we could not get source code for third configuration
+    // we should rollback operation of creating batch projects when we have not source code for at
+    // least one project
+    // For example: two projects were success created, but we could not get source code for third
+    // configuration
     // At this use case we should rollback the operation and clean up all created projects
 
     final String projectPath1 = "/testProject1";
@@ -205,10 +207,11 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
         createProjectConfigObject("testProject3", projectPath3, BaseProjectType.ID, source);
 
     final List<NewProjectConfig> configs = new ArrayList<>(2);
-    configs.add(config1); //will be success created
-    configs.add(config2); //will be success created
+    configs.add(config1); // will be success created
+    configs.add(config2); // will be success created
     configs.add(
-        config3); //we be failed - we have not registered importer - source code will not be imported
+        config3); // we be failed - we have not registered importer - source code will not be
+    // imported
 
     try {
       pm.createBatchProjects(configs, false, new ProjectOutputLineConsumerFactory("ws", 300));
@@ -378,7 +381,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
 
   @Test
   public void shouldThrowBadRequestExceptionAtCreatingBatchProjectsWhenConfigNotContainsPath()
-      throws Exception { //Path is mandatory field for NewProjectConfig
+      throws Exception { // Path is mandatory field for NewProjectConfig
     final SourceStorageDto source =
         DtoFactory.newDto(SourceStorageDto.class)
             .withLocation("someLocation")
@@ -491,7 +494,8 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
   @Test
   public void shouldSetBlankTypeAtCreatingBatchProjectsWhenConfigContainsUnregisteredProjectType()
       throws
-          Exception { // If declared primary PT is not registered, project is created as Blank, with Problem 12
+          Exception { // If declared primary PT is not registered, project is created as Blank, with
+    // Problem 12
 
     final String projectPath = "/testProject";
     final String projectType = "unregisteredProjectType";
@@ -505,18 +509,18 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     pm.createBatchProjects(configs, false, new ProjectOutputLineConsumerFactory("ws", 300));
 
     final RegisteredProject project = projectRegistry.getProject(projectPath);
-    final List<Problem> problems = project.getProblems();
+    final List<ProjectProblem> problems = project.getProblems();
     checkProjectExist(projectPath);
     assertNotEquals(projectType, project.getType());
     assertEquals(1, problems.size());
-    assertEquals(12, problems.get(0).code);
+    assertEquals(12, problems.get(0).getCode());
     assertEquals(1, projectRegistry.getProjects().size());
   }
 
   @Test
   public void shouldCreateBatchProjectsWithoutMixinPTWhenThisOneIsUnregistered()
-      throws
-          Exception { // If declared mixin PT is not registered, project is created w/o it, with Problem 12
+      throws Exception { // If declared mixin PT is not registered, project is created w/o it, with
+    // Problem 12
 
     final String projectPath = "/testProject";
     final String mixinPType = "unregistered";
@@ -531,10 +535,10 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     pm.createBatchProjects(configs, false, new ProjectOutputLineConsumerFactory("ws", 300));
 
     final RegisteredProject project = projectRegistry.getProject(projectPath);
-    final List<Problem> problems = project.getProblems();
+    final List<ProjectProblem> problems = project.getProblems();
     checkProjectExist(projectPath);
     assertEquals(1, problems.size());
-    assertEquals(12, problems.get(0).code);
+    assertEquals(12, problems.get(0).getCode());
     assertTrue(project.getMixins().isEmpty());
     assertEquals(1, projectRegistry.getProjects().size());
   }
@@ -566,7 +570,8 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
   @Test
   public void testCreateProjectWithInvalidAttribute() throws Exception {
     // SPECS:
-    // Project will be created with problem code = 13(Value for required attribute is not initialized)
+    // Project will be created with problem code = 13(Value for required attribute is not
+    // initialized)
     // when required attribute is not initialized
     final String path = "/testCreateProjectInvalidAttributes";
     final String projectType = "pt2";
@@ -580,11 +585,11 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertNotNull(pm.getProjectsRoot().getChild(path));
     assertEquals(projectType, project.getType());
 
-    List<Problem> problems = project.getProblems();
+    List<ProjectProblem> problems = project.getProblems();
     assertNotNull(problems);
     assertFalse(problems.isEmpty());
     assertEquals(1, problems.size());
-    assertEquals(13, problems.get(0).code);
+    assertEquals(13, problems.get(0).getCode());
   }
 
   @Test
@@ -610,7 +615,8 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
   public void testCreateProjectWithRequiredProvidedAttributeWhenGivenProjectTypeHasNotGenerator()
       throws Exception {
     // SPECS:
-    // Project will be created with problem code = 13 (Value for required attribute is not initialized)
+    // Project will be created with problem code = 13 (Value for required attribute is not
+    // initialized)
     // when project type has provided required attributes
     // but have not respective generator(CreateProjectHandler)
 
@@ -623,7 +629,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
 
     final RegisteredProject project = projectRegistry.getProject(path);
     final List<VirtualFileEntry> children = project.getBaseFolder().getChildren();
-    final List<Problem> problems = project.getProblems();
+    final List<ProjectProblem> problems = project.getProblems();
     assertNotNull(project);
     assertNotNull(pm.getProjectsRoot().getChild(path));
     assertEquals(projectTypeId, project.getType());
@@ -631,7 +637,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertTrue(project.getAttributes().isEmpty());
     assertFalse(problems.isEmpty());
     assertEquals(1, problems.size());
-    assertEquals(13, problems.get(0).code);
+    assertEquals(13, problems.get(0).getCode());
   }
 
   @Test
@@ -675,13 +681,13 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertNotNull(pm.getProjectsRoot().getChild(path));
     assertEquals(BaseProjectType.ID, project.getType());
 
-    List<Problem> problems = project.getProblems();
+    List<ProjectProblem> problems = project.getProblems();
     assertNotNull(problems);
     assertFalse(problems.isEmpty());
     assertEquals(1, problems.size());
-    assertEquals(12, problems.get(0).code);
+    assertEquals(12, problems.get(0).getCode());
 
-    //clean up
+    // clean up
     project.getBaseFolder().getVirtualFile().delete();
     projectRegistry.removeProjects(path);
     assertNull(projectRegistry.getProject(path));
@@ -705,7 +711,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertNotNull(problems);
     assertFalse(problems.isEmpty());
     assertEquals(1, problems.size());
-    assertEquals(12, problems.get(0).code);
+    assertEquals(12, problems.get(0).getCode());
   }
 
   @Test
@@ -732,10 +738,10 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertFalse(mixins.isEmpty());
     assertEquals(mixin, mixins.get(0));
 
-    final List<Problem> problems = project.getProblems();
+    final List<ProjectProblem> problems = project.getProblems();
     assertNotNull(problems);
     assertFalse(problems.isEmpty());
-    assertEquals(13, problems.get(0).code);
+    assertEquals(13, problems.get(0).getCode());
   }
 
   @Test
@@ -815,7 +821,8 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
 
   @Test
   public void testUpdateProjectWithProvidedAttributes() throws Exception {
-    // SPECS: Project should be updated with problem code = 13 when value for required attribute is not initialized
+    // SPECS: Project should be updated with problem code = 13 when value for required attribute is
+    // not initialized
 
     Map<String, List<String>> attributes = new HashMap<>();
     attributes.put("pt2-var2", new AttributeValue("test").getList());
@@ -831,11 +838,11 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
 
     RegisteredProject project = pm.updateProject(pc);
 
-    final List<Problem> problems = project.getProblems();
+    final List<ProjectProblem> problems = project.getProblems();
     assertNotNull(problems);
     assertFalse(problems.isEmpty());
     assertEquals(1, problems.size());
-    assertEquals(13, problems.get(0).code);
+    assertEquals(13, problems.get(0).getCode());
   }
 
   @Test
@@ -912,7 +919,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertNull(projectRegistry.getProject("/testDeleteProject/inner"));
     assertNull(projectRegistry.getProject("/testDeleteProject"));
     assertNull(pm.getProjectsRoot().getChild("/testDeleteProject/inner"));
-    //assertNull(projectRegistry.folder("/testDeleteProject/inner"));
+    // assertNull(projectRegistry.folder("/testDeleteProject/inner"));
   }
 
   @Test
@@ -962,7 +969,7 @@ public class ProjectManagerWriteTest extends WsAgentTestBase {
     assertNotNull(project);
 
     // BASE
-    //System.out.println(">>> "+project.getProjectType());
+    // System.out.println(">>> "+project.getProjectType());
 
     assertNotNull(project.getBaseFolder().getChild("file1"));
     assertEquals(

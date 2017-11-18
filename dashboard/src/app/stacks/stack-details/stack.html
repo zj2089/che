@@ -34,7 +34,7 @@
                    che-place-holder="Name of the stack"
                    ng-model="stackController.stackName"
                    custom-validator="stackController.isUniqueName($value)"
-                   ng-change="stackController.updateStackName(stackForm.$valid)"
+                   ng-change="stackController.updateStackName()"
                    required
                    ng-maxlength="128"
                    ng-pattern="/^[A-Za-z0-9_\s\-\.\+]+$/">
@@ -92,7 +92,7 @@
     </che-label-container>
     <!-- Components -->
     <che-label-container che-label-name="Components"
-                         che-label-description="Components are listed in the stack's description for users.">
+                         che-label-description="Components are listed in the stack\'s description for users.">
       <list-components components-on-change="stackController.updateJsonFromStack()"
                        components="stackController.stack.components"></list-components>
     </che-label-container>

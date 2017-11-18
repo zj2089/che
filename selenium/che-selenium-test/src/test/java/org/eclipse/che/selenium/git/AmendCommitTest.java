@@ -20,7 +20,7 @@ import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.project.ProjectTemplates;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -47,7 +47,7 @@ public class AmendCommitTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -101,7 +101,7 @@ public class AmendCommitTest {
     projectExplorer.quickExpandWithJavaScript();
     projectExplorer.openItemByPath(PATH_TO_FILE);
     editor.waitActiveEditor();
-    editor.setCursorToLine(16);
+    editor.setCursorToLine(12);
     editor.typeTextIntoEditor("//" + CHANGE_CONTENT);
     editor.waitTextIntoEditor("//" + CHANGE_CONTENT);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
@@ -130,7 +130,7 @@ public class AmendCommitTest {
     // perform amend previous commit
     projectExplorer.openItemByPath(PATH_TO_FILE);
     editor.waitActiveEditor();
-    editor.setCursorToLine(16);
+    editor.setCursorToLine(12);
     editor.selectLineAndDelete();
     editor.typeTextIntoEditor("//" + AMEND_CONTENT);
     editor.waitTextIntoEditor("//" + AMEND_CONTENT);
@@ -156,7 +156,6 @@ public class AmendCommitTest {
 
   private void checkChangesIntoCompareForm(String expText) {
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor(expText);
     git.waitTextNotPresentIntoCompareRightEditor(expText);
   }

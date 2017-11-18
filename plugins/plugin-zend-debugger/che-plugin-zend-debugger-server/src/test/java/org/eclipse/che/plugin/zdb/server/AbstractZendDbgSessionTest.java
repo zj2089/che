@@ -10,7 +10,7 @@
 package org.eclipse.che.plugin.zdb.server;
 
 import static org.mockito.AdditionalAnswers.returnsFirstArg;
-import static org.mockito.Matchers.anyObject;
+import static org.mockito.ArgumentMatchers.anyObject;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -73,7 +73,7 @@ public abstract class AbstractZendDbgSessionTest {
     }
     assertTrue(debuggerEvent instanceof SuspendEvent);
     SuspendEvent suspendEvent = (SuspendEvent) debuggerEvent;
-    assertEquals(suspendEvent.getLocation().getResourcePath(), dbgFile);
+    assertEquals(suspendEvent.getLocation().getTarget(), dbgFile);
     assertEquals(suspendEvent.getLocation().getLineNumber(), lineNumber);
   }
 

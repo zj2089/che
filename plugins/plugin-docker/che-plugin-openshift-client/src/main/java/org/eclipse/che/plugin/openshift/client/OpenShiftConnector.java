@@ -13,6 +13,8 @@ package org.eclipse.che.plugin.openshift.client;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerStateRunning;
@@ -21,6 +23,8 @@ import io.fabric8.kubernetes.api.model.ContainerStateWaiting;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.DoneableEndpoints;
 import io.fabric8.kubernetes.api.model.Endpoints;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeSystemInfo;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimList;
@@ -36,12 +40,14 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceList;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServiceSpec;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.extensions.Deployment;
 import io.fabric8.kubernetes.api.model.extensions.DeploymentBuilder;
+import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.Watcher;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
@@ -53,8 +59,13 @@ import io.fabric8.openshift.api.model.DoneableDeploymentConfig;
 import io.fabric8.openshift.api.model.Image;
 import io.fabric8.openshift.api.model.ImageStream;
 import io.fabric8.openshift.api.model.ImageStreamTag;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.api.model.RouteList;
+import io.fabric8.openshift.api.model.RouteSpec;
+import io.fabric8.openshift.api.model.RouteTargetReference;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.fabric8.openshift.client.OpenShiftConfig;
 import io.fabric8.openshift.client.dsl.DeployableScalableResource;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -83,10 +94,14 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
+import okhttp3.OkHttpClient;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
+import org.eclipse.che.api.workspace.server.WorkspaceSubjectRegistry;
 import org.eclipse.che.api.workspace.server.event.ServerIdleEvent;
 import org.eclipse.che.commons.annotation.Nullable;
+import org.eclipse.che.commons.env.EnvironmentContext;
+import org.eclipse.che.commons.subject.Subject;
 import org.eclipse.che.plugin.docker.client.DockerApiVersionPathPrefixProvider;
 import org.eclipse.che.plugin.docker.client.DockerConnector;
 import org.eclipse.che.plugin.docker.client.DockerConnectorConfiguration;
@@ -95,12 +110,14 @@ import org.eclipse.che.plugin.docker.client.Exec;
 import org.eclipse.che.plugin.docker.client.LogMessage;
 import org.eclipse.che.plugin.docker.client.MessageProcessor;
 import org.eclipse.che.plugin.docker.client.ProgressMonitor;
+import org.eclipse.che.plugin.docker.client.WorkspacesRoutingSuffixProvider;
 import org.eclipse.che.plugin.docker.client.connection.DockerConnectionFactory;
 import org.eclipse.che.plugin.docker.client.exception.ImageNotFoundException;
 import org.eclipse.che.plugin.docker.client.json.ContainerConfig;
 import org.eclipse.che.plugin.docker.client.json.ContainerCreated;
 import org.eclipse.che.plugin.docker.client.json.ContainerInfo;
 import org.eclipse.che.plugin.docker.client.json.ContainerListEntry;
+import org.eclipse.che.plugin.docker.client.json.ContainerProcesses;
 import org.eclipse.che.plugin.docker.client.json.ContainerState;
 import org.eclipse.che.plugin.docker.client.json.Event;
 import org.eclipse.che.plugin.docker.client.json.Filters;
@@ -110,6 +127,8 @@ import org.eclipse.che.plugin.docker.client.json.ImageInfo;
 import org.eclipse.che.plugin.docker.client.json.NetworkCreated;
 import org.eclipse.che.plugin.docker.client.json.NetworkSettings;
 import org.eclipse.che.plugin.docker.client.json.PortBinding;
+import org.eclipse.che.plugin.docker.client.json.SystemInfo;
+import org.eclipse.che.plugin.docker.client.json.Version;
 import org.eclipse.che.plugin.docker.client.json.network.ContainerInNetwork;
 import org.eclipse.che.plugin.docker.client.json.network.EndpointConfig;
 import org.eclipse.che.plugin.docker.client.json.network.Ipam;
@@ -131,6 +150,7 @@ import org.eclipse.che.plugin.docker.client.params.StartContainerParams;
 import org.eclipse.che.plugin.docker.client.params.StartExecParams;
 import org.eclipse.che.plugin.docker.client.params.StopContainerParams;
 import org.eclipse.che.plugin.docker.client.params.TagParams;
+import org.eclipse.che.plugin.docker.client.params.TopParams;
 import org.eclipse.che.plugin.docker.client.params.network.ConnectContainerToNetworkParams;
 import org.eclipse.che.plugin.docker.client.params.network.CreateNetworkParams;
 import org.eclipse.che.plugin.docker.client.params.network.DisconnectContainerFromNetworkParams;
@@ -195,6 +215,9 @@ public class OpenShiftConnector extends DockerConnector {
   /** Regexp to extract port (under the form 22/tcp or 4401/tcp, etc.) from label references */
   public static final String LABEL_CHE_SERVER_REF_KEY = "^che:server:(.*):ref$";
 
+  private static final String PS_COMMAND = "ps";
+  private static final String TOP_REGEX_PATTERN = " +";
+
   private Map<String, KubernetesExecHolder> execMap = new HashMap<>();
 
   private final String openShiftCheProjectName;
@@ -212,9 +235,18 @@ public class OpenShiftConnector extends DockerConnector {
   private final OpenShiftPvcHelper openShiftPvcHelper;
   private final OpenShiftRouteCreator openShiftRouteCreator;
   private final OpenShiftDeploymentCleaner openShiftDeploymentCleaner;
+  private final WorkspacesRoutingSuffixProvider cheWorkspacesRoutingSuffixProvider;
+  private final OpenshiftWorkspaceEnvironmentProvider openshiftWorkspaceEnvironmentProvider;
+  private String apiEndpoint;
+  private Boolean apiEndpointRetrieved = false;
+  private final WorkspaceSubjectRegistry workspaceSubjectRegistry;
+
+  private Map<String, String> containerIdToWorkspaceId = new HashMap<>();
+  private Map<String, String> imageIdToWorkspaceId = new HashMap<>();
 
   @Inject
   public OpenShiftConnector(
+      OpenshiftWorkspaceEnvironmentProvider openshiftUserAccountProvider,
       DockerConnectorConfiguration connectorConfiguration,
       DockerConnectionFactory connectionFactory,
       DockerRegistryAuthResolver authResolver,
@@ -223,7 +255,9 @@ public class OpenShiftConnector extends DockerConnector {
       OpenShiftRouteCreator openShiftRouteCreator,
       OpenShiftDeploymentCleaner openShiftDeploymentCleaner,
       EventService eventService,
+      WorkspaceSubjectRegistry workspaceSubjectRegistry,
       @Nullable @Named("che.docker.ip.external") String cheServerExternalAddress,
+      WorkspacesRoutingSuffixProvider cheWorkspacesRoutingSuffixProvider,
       @Named("che.openshift.project") String openShiftCheProjectName,
       @Named("che.openshift.liveness.probe.delay") int openShiftLivenessProbeDelay,
       @Named("che.openshift.liveness.probe.timeout") int openShiftLivenessProbeTimeout,
@@ -241,7 +275,9 @@ public class OpenShiftConnector extends DockerConnector {
         connectionFactory,
         authResolver,
         dockerApiVersionPathPrefixProvider);
+    this.openshiftWorkspaceEnvironmentProvider = openshiftUserAccountProvider;
     this.cheServerExternalAddress = cheServerExternalAddress;
+    this.cheWorkspacesRoutingSuffixProvider = cheWorkspacesRoutingSuffixProvider;
     this.openShiftCheProjectName = openShiftCheProjectName;
     this.openShiftLivenessProbeDelay = openShiftLivenessProbeDelay;
     this.openShiftLivenessProbeTimeout = openShiftLivenessProbeTimeout;
@@ -256,6 +292,7 @@ public class OpenShiftConnector extends DockerConnector {
     this.openShiftPvcHelper = openShiftPvcHelper;
     this.openShiftRouteCreator = openShiftRouteCreator;
     this.openShiftDeploymentCleaner = openShiftDeploymentCleaner;
+    this.workspaceSubjectRegistry = workspaceSubjectRegistry;
     eventService.subscribe(
         new EventSubscriber<ServerIdleEvent>() {
 
@@ -264,6 +301,85 @@ public class OpenShiftConnector extends DockerConnector {
             idleCheServer(event);
           }
         });
+    LOG.info("openshiftWorkspaceEnvironmentProvider = {}", openshiftUserAccountProvider.getClass());
+  }
+
+  private String retrieveApiEndpoint() {
+    try (OpenShiftClient oc = new DefaultOpenShiftClient()) {
+      Service cheService =
+          oc.services()
+              .inNamespace(openShiftCheProjectName)
+              .withName(OPENSHIFT_CHE_SERVER_SERVICE_NAME)
+              .get();
+      if (cheService != null) {
+        if (openshiftWorkspaceEnvironmentProvider.areWorkspacesExternal()) {
+          RouteList routes = oc.routes().inNamespace(openShiftCheProjectName).list();
+          for (Route route : routes.getItems()) {
+            RouteSpec spec = route.getSpec();
+            RouteTargetReference target = spec.getTo();
+            if (target != null
+                && "Service".equalsIgnoreCase(target.getKind())
+                && OPENSHIFT_CHE_SERVER_SERVICE_NAME.equals(target.getName())) {
+              String host = spec.getHost();
+              String protocol = spec.getTls() != null ? "https://" : "http://";
+              return protocol + host + "/wsmaster/api";
+            }
+          }
+        } else {
+          ServiceSpec spec = cheService.getSpec();
+          String host = spec.getClusterIP();
+          String protocol = "http://";
+          String port = "";
+          List<ServicePort> ports = spec.getPorts();
+          if (!ports.isEmpty()) {
+            port = ":" + ports.get(0).getPort();
+          }
+          return protocol + host + port + "/wsmaster/api";
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Gets the API endpoint URL to be used if the `che.workspace.che_server_endpoint` property is
+   * null.
+   *
+   * @return .
+   * @throws IOException when a problem occurs with docker api calls
+   */
+  @Override
+  @Nullable
+  public String getApiEndpoint() {
+    synchronized (apiEndpointRetrieved) {
+      if (!apiEndpointRetrieved) {
+        apiEndpointRetrieved = true;
+        apiEndpoint = retrieveApiEndpoint();
+        LOG.debug("apiEndpoint = {}", apiEndpoint);
+      }
+    }
+
+    return apiEndpoint;
+  }
+
+  @Override
+  public Version getVersion() throws IOException {
+    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient();
+        OpenShiftClientExtension client =
+            new OpenShiftClientExtension(
+                openShiftClient.adapt(OkHttpClient.class),
+                OpenShiftConfig.wrap(openShiftClient.getConfiguration()))) {
+      String versionString = client.getVersion();
+      if (isNullOrEmpty(versionString)) {
+        return null;
+      }
+
+      final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+      OpenShiftVersion openShiftVersion = gson.fromJson(versionString, OpenShiftVersion.class);
+      Version version = openShiftVersion.getVersion();
+      version.setApiVersion(client.getApiVersion());
+      return version;
+    }
   }
 
   private void idleCheServer(ServerIdleEvent event) {
@@ -331,8 +447,18 @@ public class OpenShiftConnector extends DockerConnector {
    */
   protected Set<String> getExposedPorts(ContainerConfig containerConfig, ImageConfig imageConfig) {
 
-    Set<String> containerExposedPorts = containerConfig.getExposedPorts().keySet();
-    Set<String> imageExposedPorts = imageConfig.getExposedPorts().keySet();
+    Map<String, Map<String, String>> containerExposedPortsMap = containerConfig.getExposedPorts();
+    if (containerExposedPortsMap == null) {
+      containerExposedPortsMap = Collections.emptyMap();
+    }
+    Map<String, org.eclipse.che.plugin.docker.client.json.ExposedPort> imageExposedPortsMap =
+        imageConfig.getExposedPorts();
+    if (imageExposedPortsMap == null) {
+      imageExposedPortsMap = Collections.emptyMap();
+    }
+
+    Set<String> containerExposedPorts = containerExposedPortsMap.keySet();
+    Set<String> imageExposedPorts = imageExposedPortsMap.keySet();
     return ImmutableSet.<String>builder()
         .addAll(containerExposedPorts)
         .addAll(imageExposedPorts)
@@ -351,9 +477,15 @@ public class OpenShiftConnector extends DockerConnector {
 
     // first, get labels defined in the container configuration
     Map<String, String> containerLabels = containerConfig.getLabels();
+    if (containerLabels == null) {
+      containerLabels = Collections.emptyMap();
+    }
 
     // Also, get labels from the image itself
     Map<String, String> imageLabels = imageConfig.getLabels();
+    if (imageLabels == null) {
+      imageLabels = Collections.emptyMap();
+    }
 
     // Now merge all labels
     final Map<String, String> allLabels = new HashMap<>(containerLabels);
@@ -402,6 +534,42 @@ public class OpenShiftConnector extends DockerConnector {
     return portsToRefName;
   }
 
+  private Subject subjectForContainerId(String containerId) {
+    String workspaceId = containerIdToWorkspaceId.get(containerId);
+    if (workspaceId != null) {
+      Subject subject = workspaceSubjectRegistry.getWorkspaceStarter(workspaceId);
+      if (subject != null) {
+        return subject;
+      }
+      Subject envSubject = EnvironmentContext.getCurrent().getSubject();
+      LOG.info(
+          "Didn't find the user that started workspace '{}' => using environment context subject: '{}'",
+          workspaceId,
+          envSubject.getUserName());
+      return envSubject;
+    }
+    LOG.warn("Didn't find container '{}' in the map of created containers", containerId);
+    return null;
+  }
+
+  private Subject subjectForImageId(String imageId) {
+    String workspaceId = imageIdToWorkspaceId.get(imageId);
+    if (workspaceId != null) {
+      Subject subject = workspaceSubjectRegistry.getWorkspaceStarter(workspaceId);
+      if (subject != null) {
+        return subject;
+      }
+      Subject envSubject = EnvironmentContext.getCurrent().getSubject();
+      LOG.info(
+          "Didn't find the user that started workspace '{}' => using environment context subject: '{}'",
+          workspaceId,
+          envSubject.getUserName());
+      return envSubject;
+    }
+    LOG.warn("Didn't find image '{}' in the map of created images", imageId);
+    return null;
+  }
+
   /**
    * @param createContainerParams
    * @return
@@ -417,6 +585,8 @@ public class OpenShiftConnector extends DockerConnector {
     // imageForDocker is the docker version of the image repository. It's needed for other
     // OpenShiftConnector API methods, but is not acceptable as an OpenShift name
     String imageForDocker = createContainerParams.getContainerConfig().getImage();
+    imageIdToWorkspaceId.put(imageForDocker, getOriginalCheWorkspaceId(createContainerParams));
+
     // imageStreamTagName is imageForDocker converted into a form that can be used
     // in OpenShift
     String imageStreamTagName = KubernetesStringUtils.convertPullSpecToTagName(imageForDocker);
@@ -424,7 +594,11 @@ public class OpenShiftConnector extends DockerConnector {
     // imageStreamTagName is not enough to fill out a pull spec; it is only the tag, so we
     // have to get the ImageStreamTag from the tag, and then get the full ImageStreamTag name
     // from that tag. This works because the tags used in Che are unique.
-    ImageStreamTag imageStreamTag = getImageStreamTagFromRepo(imageStreamTagName);
+    ImageStreamTag imageStreamTag =
+        getImageStreamTagFromRepo(
+            imageStreamTagName,
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(),
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace());
     String imageStreamTagPullSpec = imageStreamTag.getMetadata().getName();
 
     // Next we need to get the address of the registry where the ImageStreamTag is stored
@@ -432,11 +606,13 @@ public class OpenShiftConnector extends DockerConnector {
         KubernetesStringUtils.getImageStreamNameFromPullSpec(imageStreamTagPullSpec);
 
     ImageStream imageStream;
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       imageStream =
           openShiftClient
               .imageStreams()
-              .inNamespace(openShiftCheProjectName)
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
               .withName(imageStreamName)
               .get();
       if (imageStream == null) {
@@ -447,7 +623,11 @@ public class OpenShiftConnector extends DockerConnector {
 
     // The above needs to be combined to form a pull spec that will work when defining a container.
     String dockerPullSpec =
-        String.format("%s/%s/%s", registryAddress, openShiftCheProjectName, imageStreamTagPullSpec);
+        String.format(
+            "%s/%s/%s",
+            registryAddress,
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(),
+            imageStreamTagPullSpec);
 
     ContainerConfig containerConfig = createContainerParams.getContainerConfig();
     ImageConfig imageConfig = inspectImage(InspectImageParams.create(imageForDocker)).getConfig();
@@ -507,7 +687,9 @@ public class OpenShiftConnector extends DockerConnector {
     }
 
     String containerID;
-    OpenShiftClient openShiftClient = new DefaultOpenShiftClient();
+    OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig());
     try {
       createOpenShiftService(
           deploymentName,
@@ -532,12 +714,15 @@ public class OpenShiftConnector extends DockerConnector {
         throw new OpenShiftException(
             "Failed to get the ID of the container running in the OpenShift pod");
       }
-    } catch (IOException | KubernetesClientException e) {
-      // Make sure we clean up deployment and service in case of an error -- otherwise Che can end up
+      containerIdToWorkspaceId.put(containerID, getOriginalCheWorkspaceId(createContainerParams));
+    } catch (Exception e) {
+      // Make sure we clean up deployment and service in case of an error -- otherwise Che can end
+      // up
       // in an inconsistent state.
       LOG.info("Error while creating Pod, removing deployment");
       LOG.info(e.getMessage());
-      openShiftDeploymentCleaner.cleanDeploymentResources(deploymentName, openShiftCheProjectName);
+      imageIdToWorkspaceId.remove(imageForDocker);
+      openShiftDeploymentCleaner.cleanDeploymentResources(deploymentName);
       openShiftClient.resource(imageStreamTag).delete();
       throw e;
     } finally {
@@ -588,7 +773,7 @@ public class OpenShiftConnector extends DockerConnector {
 
   @Override
   public ContainerInfo inspectContainer(String containerId) throws IOException {
-
+    Subject subject = subjectForContainerId(containerId);
     Pod pod = getChePodByContainerId(containerId);
     if (pod == null) {
       LOG.warn("No Pod found by container ID {}", containerId);
@@ -603,7 +788,9 @@ public class OpenShiftConnector extends DockerConnector {
     }
 
     Deployment deployment;
-    try (OpenShiftClient client = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient client =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject))) {
       deployment = client.extensions().deployments().withName(deploymentName).get();
       if (deployment == null) {
         LOG.warn(
@@ -624,10 +811,14 @@ public class OpenShiftConnector extends DockerConnector {
 
     String tagName = KubernetesStringUtils.getTagNameFromPullSpec(podPullSpec);
 
-    ImageStreamTag tag = getImageStreamTagFromRepo(tagName);
+    ImageStreamTag tag =
+        getImageStreamTagFromRepo(
+            tagName,
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject),
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject));
     ImageInfo imageInfo = getImageInfoFromTag(tag);
 
-    Service svc = getCheServiceBySelector(OPENSHIFT_DEPLOYMENT_LABEL, deploymentName);
+    Service svc = getCheServiceBySelector(OPENSHIFT_DEPLOYMENT_LABEL, deploymentName, subject);
     if (svc == null) {
       LOG.warn("No Service found by selector {}={}", OPENSHIFT_DEPLOYMENT_LABEL, deploymentName);
       return null;
@@ -638,8 +829,11 @@ public class OpenShiftConnector extends DockerConnector {
 
   @Override
   public void removeContainer(final RemoveContainerParams params) throws IOException {
+    String containerId = params.getContainer();
+    Subject subject = subjectForContainerId(containerId);
     String deploymentName = getDeploymentName(params);
-    openShiftDeploymentCleaner.cleanDeploymentResources(deploymentName, openShiftCheProjectName);
+    openShiftDeploymentCleaner.cleanDeploymentResources(deploymentName, subject);
+    containerIdToWorkspaceId.remove(containerId);
   }
 
   @Override
@@ -689,8 +883,14 @@ public class OpenShiftConnector extends DockerConnector {
     String netId = params.getNetworkId();
     ServiceList services;
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
-      services = openShiftClient.services().inNamespace(this.openShiftCheProjectName).list();
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
+      services =
+          openShiftClient
+              .services()
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
+              .list();
     }
 
     Map<String, ContainerInNetwork> containers = new HashMap<>();
@@ -701,11 +901,14 @@ public class OpenShiftConnector extends DockerConnector {
       }
 
       PodList pods;
-      try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+      try (OpenShiftClient openShiftClient =
+          new DefaultOpenShiftClient(
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
         pods =
             openShiftClient
                 .pods()
-                .inNamespace(openShiftCheProjectName)
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
                 .withLabel(OPENSHIFT_DEPLOYMENT_LABEL, selector)
                 .list();
       }
@@ -786,20 +989,24 @@ public class OpenShiftConnector extends DockerConnector {
     String imageStreamName = KubernetesStringUtils.convertPullSpecToImageStreamName(repo);
     ImageStream existingImageStream;
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       existingImageStream =
           openShiftClient
               .imageStreams()
-              .inNamespace(openShiftCheProjectName)
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
               .withName(imageStreamName)
               .get();
     }
 
     if (existingImageStream == null) {
-      try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+      try (OpenShiftClient openShiftClient =
+          new DefaultOpenShiftClient(
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
         openShiftClient
             .imageStreams()
-            .inNamespace(openShiftCheProjectName)
+            .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
             .createNew()
             .withNewMetadata()
             .withName(imageStreamName) // imagestream id
@@ -826,11 +1033,14 @@ public class OpenShiftConnector extends DockerConnector {
         Thread.currentThread().interrupt();
       }
 
-      try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+      try (OpenShiftClient openShiftClient =
+          new DefaultOpenShiftClient(
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
         createdImageStream =
             openShiftClient
                 .imageStreams()
-                .inNamespace(openShiftCheProjectName)
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
                 .withName(imageStreamName)
                 .get();
       }
@@ -881,7 +1091,11 @@ public class OpenShiftConnector extends DockerConnector {
     // Check if sourceImage matches existing imageStreamTag (e.g. when tagging a snapshot)
     try {
       String sourceImageTagName = KubernetesStringUtils.convertPullSpecToTagName(sourceImage);
-      ImageStreamTag existingTag = getImageStreamTagFromRepo(sourceImageTagName);
+      ImageStreamTag existingTag =
+          getImageStreamTagFromRepo(
+              sourceImageTagName,
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(),
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace());
       sourceImageWithTag = existingTag.getTag().getFrom().getName();
     } catch (IOException e) {
       // Image not found.
@@ -896,22 +1110,39 @@ public class OpenShiftConnector extends DockerConnector {
 
   @Override
   public ImageInfo inspectImage(InspectImageParams params) throws IOException {
+    Subject subject = subjectForImageId(params.getImage());
+    if (subject == null) {
+      subject = EnvironmentContext.getCurrent().getSubject();
+    }
+    final Config openshiftConfig =
+        openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject);
+    final String openshiftNamespace =
+        openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject);
 
     String image = KubernetesStringUtils.getImageStreamNameFromPullSpec(params.getImage());
 
     String imageStreamTagName = KubernetesStringUtils.convertPullSpecToTagName(image);
-    ImageStreamTag imageStreamTag = getImageStreamTagFromRepo(imageStreamTagName);
+    ImageStreamTag imageStreamTag =
+        getImageStreamTagFromRepo(imageStreamTagName, openshiftConfig, openshiftNamespace);
 
     return getImageInfoFromTag(imageStreamTag);
   }
 
   @Override
   public void removeImage(final RemoveImageParams params) throws IOException {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    Subject subject = subjectForImageId(params.getImage());
+    final Config openshiftConfig =
+        openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject);
+    final String openshiftNamespace =
+        openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject);
+
+    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient(openshiftConfig)) {
       String image = KubernetesStringUtils.getImageStreamNameFromPullSpec(params.getImage());
       String imageStreamTagName = KubernetesStringUtils.convertPullSpecToTagName(image);
-      ImageStreamTag imageStreamTag = getImageStreamTagFromRepo(imageStreamTagName);
+      ImageStreamTag imageStreamTag =
+          getImageStreamTagFromRepo(imageStreamTagName, openshiftConfig, openshiftNamespace);
       openShiftClient.resource(imageStreamTag).delete();
+      imageIdToWorkspaceId.remove(params.getImage());
     }
   }
 
@@ -933,7 +1164,11 @@ public class OpenShiftConnector extends DockerConnector {
     String image = pod.getSpec().getContainers().get(0).getImage();
     String imageStreamTagName = KubernetesStringUtils.getTagNameFromPullSpec(image);
 
-    ImageStreamTag imageStreamTag = getImageStreamTagFromRepo(imageStreamTagName);
+    ImageStreamTag imageStreamTag =
+        getImageStreamTagFromRepo(
+            imageStreamTagName,
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(),
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace());
     String sourcePullSpec = imageStreamTag.getTag().getFrom().getName();
     String trackingRepo = KubernetesStringUtils.stripTagFromPullSpec(sourcePullSpec);
     String tag = KubernetesStringUtils.getTagNameFromPullSpec(sourcePullSpec);
@@ -944,7 +1179,8 @@ public class OpenShiftConnector extends DockerConnector {
   }
 
   @Override
-  public void getEvents(final GetEventsParams params, MessageProcessor<Event> messageProcessor) {
+  public void getEvents(final GetEventsParams params, MessageProcessor<Event> messageProcessor)
+      throws OpenShiftException {
     CountDownLatch waitForClose = new CountDownLatch(1);
     Watcher<io.fabric8.kubernetes.api.model.Event> eventWatcher =
         new Watcher<io.fabric8.kubernetes.api.model.Event>() {
@@ -963,15 +1199,19 @@ public class OpenShiftConnector extends DockerConnector {
             waitForClose.countDown();
           }
         };
-    OpenShiftClient openShiftClient = new DefaultOpenShiftClient();
-    openShiftClient.events().inNamespace(openShiftCheProjectName).watch(eventWatcher);
-    try {
-      waitForClose.await();
-    } catch (InterruptedException e) {
-      LOG.error("Thread interrupted while waiting for eventWatcher.");
-      Thread.currentThread().interrupt();
-    } finally {
-      openShiftClient.close();
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
+      openShiftClient
+          .events()
+          .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
+          .watch(eventWatcher);
+      try {
+        waitForClose.await();
+      } catch (InterruptedException e) {
+        LOG.error("Thread interrupted while waiting for eventWatcher.");
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
@@ -980,16 +1220,21 @@ public class OpenShiftConnector extends DockerConnector {
       final GetContainerLogsParams params, MessageProcessor<LogMessage> containerLogsProcessor)
       throws IOException {
     String container = params.getContainer(); // container ID
+    Subject subject = subjectForContainerId(container);
+
     Pod pod = getChePodByContainerId(container);
     if (pod != null) {
       String podName = pod.getMetadata().getName();
       boolean[] ret = new boolean[1];
       ret[0] = false;
-      OpenShiftClient openShiftClient = new DefaultOpenShiftClient();
+      OpenShiftClient openShiftClient =
+          new DefaultOpenShiftClient(
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject));
       try (LogWatch watchLog =
           openShiftClient
               .pods()
-              .inNamespace(openShiftCheProjectName)
+              .inNamespace(
+                  openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
               .withName(podName)
               .watchLog()) {
         Watcher<Pod> watcher =
@@ -1009,7 +1254,8 @@ public class OpenShiftConnector extends DockerConnector {
             };
         openShiftClient
             .pods()
-            .inNamespace(openShiftCheProjectName)
+            .inNamespace(
+                openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
             .withName(podName)
             .watch(watcher);
         Thread.sleep(5000);
@@ -1022,12 +1268,77 @@ public class OpenShiftConnector extends DockerConnector {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       } catch (IOException e) {
-        // The kubernetes client throws an exception (Pipe not connected) when pod doesn't contain any logs.
+        // The kubernetes client throws an exception (Pipe not connected) when pod doesn't contain
+        // any logs.
         // We can ignore it.
       } finally {
         openShiftClient.close();
       }
     }
+  }
+
+  @Override
+  public ContainerProcesses top(final TopParams params) throws IOException {
+    String containerId = params.getContainer();
+    Subject subject = subjectForContainerId(containerId);
+    Pod pod = getChePodByContainerId(containerId);
+    String podName = pod.getMetadata().getName();
+    String[] command;
+    final String[] psArgs = params.getPsArgs();
+    if (psArgs != null && psArgs.length != 0) {
+      int length = psArgs.length + 1;
+      command = new String[length];
+      command[0] = PS_COMMAND;
+      System.arraycopy(psArgs, 0, command, 1, psArgs.length);
+    } else {
+      command = new String[1];
+      command[0] = PS_COMMAND;
+    }
+    ContainerProcesses processes = new ContainerProcesses();
+    try (OpenShiftClient openShiftClient =
+            new DefaultOpenShiftClient(
+                openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject));
+        ExecWatch watch =
+            openShiftClient
+                .pods()
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
+                .withName(podName)
+                .redirectingOutput()
+                .redirectingError()
+                .exec(command)) {
+      BufferedReader reader = new BufferedReader(new InputStreamReader(watch.getOutput()));
+      boolean first = true;
+      int limit = 0;
+      try {
+        List<String[]> procList = new ArrayList<>();
+        while (reader.ready()) {
+          String line = reader.readLine();
+          if (line == null || line.isEmpty()) {
+            continue;
+          }
+          if (line.startsWith("rpc error")) {
+            throw new IOException(line);
+          }
+          line = line.trim();
+          if (first) {
+            String[] elements = line.split(TOP_REGEX_PATTERN);
+            limit = elements.length;
+            first = false;
+            processes.setTitles(elements);
+          } else {
+            String[] elements = line.split(TOP_REGEX_PATTERN, limit);
+            procList.add(elements);
+          }
+        }
+        processes.setProcesses(procList.toArray(new String[0][0]));
+      } catch (IOException e) {
+        throw new OpenShiftException(e.getMessage());
+      }
+    } catch (KubernetesClientException e) {
+      throw new OpenShiftException(e.getMessage());
+    }
+    return processes;
   }
 
   @Override
@@ -1040,7 +1351,10 @@ public class OpenShiftConnector extends DockerConnector {
 
     String execId = KubernetesStringUtils.generateWorkspaceID();
     KubernetesExecHolder execHolder =
-        new KubernetesExecHolder().withCommand(command).withPod(podName);
+        new KubernetesExecHolder()
+            .withCommand(command)
+            .withPod(podName)
+            .withContainerId(containerId);
     execMap.put(execId, execHolder);
 
     return new Exec(command, execId);
@@ -1053,6 +1367,7 @@ public class OpenShiftConnector extends DockerConnector {
     String execId = params.getExecId();
 
     KubernetesExecHolder exec = execMap.get(execId);
+    Subject subject = subjectForContainerId(exec.getContainerId());
 
     String podName = exec.getPod();
     String[] command = exec.getCommand();
@@ -1061,11 +1376,14 @@ public class OpenShiftConnector extends DockerConnector {
     }
 
     ExecutorService executor = Executors.newFixedThreadPool(2);
-    OpenShiftClient openShiftClient = new DefaultOpenShiftClient();
+    OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject));
     try (ExecWatch watch =
             openShiftClient
                 .pods()
-                .inNamespace(openShiftCheProjectName)
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
                 .withName(podName)
                 .redirectingOutput()
                 .redirectingError()
@@ -1093,6 +1411,44 @@ public class OpenShiftConnector extends DockerConnector {
     }
   }
 
+  @Override
+  public SystemInfo getSystemInfo() throws IOException {
+    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+      PodList chePods = openShiftClient.pods().inNamespace(this.openShiftCheProjectName).list();
+      if (chePods.getItems().size() > 0) {
+        Pod pod = chePods.getItems().get(0);
+        Node node = openShiftClient.nodes().withName(pod.getSpec().getNodeName()).get();
+        NodeSystemInfo nodeInfo = node.getStatus().getNodeInfo();
+        SystemInfo systemInfo = new SystemInfo();
+        systemInfo.setKernelVersion(nodeInfo.getKernelVersion());
+        systemInfo.setOperatingSystem(nodeInfo.getOperatingSystem());
+        systemInfo.setID(node.getMetadata().getUid());
+        int containers =
+            openShiftClient
+                .pods()
+                .inNamespace(this.openShiftCheProjectName)
+                .list()
+                .getItems()
+                .size();
+        int images = node.getStatus().getImages().size();
+        systemInfo.setContainers(containers);
+        systemInfo.setImages(images);
+        systemInfo.setName(node.getMetadata().getName());
+        String[] labels =
+            node.getMetadata()
+                .getLabels()
+                .entrySet()
+                .stream()
+                .map(e -> String.format("%s=%s", e.getKey(), e.getValue()))
+                .toArray(String[]::new);
+        systemInfo.setLabels(labels);
+        return systemInfo;
+      } else {
+        throw new OpenShiftException("No pod found");
+      }
+    }
+  }
+
   /**
    * Gets the ImageStreamTag corresponding to a given tag name (i.e. without the repository)
    *
@@ -1100,19 +1456,21 @@ public class OpenShiftConnector extends DockerConnector {
    * @return
    * @throws IOException if either no matching tag is found, or there are multiple matches.
    */
-  private ImageStreamTag getImageStreamTagFromRepo(String imageStreamTagName) throws IOException {
+  private ImageStreamTag getImageStreamTagFromRepo(
+      String imageStreamTagName, Config openshiftConfig, String openshiftNamespace)
+      throws IOException {
 
     // Since repository + tag are limited to 63 chars, it's possible that the entire
     // tag name did not fit, so we have to match a substring.
     String imageTagTrimmed =
-        imageStreamTagName.length() > 30 ? imageStreamTagName.substring(0, 30) : imageStreamTagName;
+        imageStreamTagName.length() > 20 ? imageStreamTagName.substring(0, 20) : imageStreamTagName;
 
     // Note: ideally, ImageStreamTags could be identified with a label, but it seems like
     // ImageStreamTags do not support labels.
     List<ImageStreamTag> imageStreams;
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient(openshiftConfig)) {
       imageStreams =
-          openShiftClient.imageStreamTags().inNamespace(openShiftCheProjectName).list().getItems();
+          openShiftClient.imageStreamTags().inNamespace(openshiftNamespace).list().getItems();
     }
 
     // We only get ImageStreamTag names here, since these ImageStreamTags do not include
@@ -1135,23 +1493,32 @@ public class OpenShiftConnector extends DockerConnector {
     String imageStreamTag = imageStreamTags.get(0);
 
     // Finally, get the ImageStreamTag, with Docker metadata.
-    return getImageStreamTag(imageStreamTag);
+    return getImageStreamTag(imageStreamTag, openshiftConfig, openshiftNamespace);
   }
 
-  private ImageStreamTag getImageStreamTag(final String imageStreamName) {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+  private ImageStreamTag getImageStreamTag(
+      final String imageStreamName, Config openshiftConfig, String openshiftNamespace)
+      throws OpenShiftException {
+    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient(openshiftConfig)) {
       return openShiftClient
           .imageStreamTags()
-          .inNamespace(openShiftCheProjectName)
+          .inNamespace(openshiftNamespace)
           .withName(imageStreamName)
           .get();
     }
   }
 
-  private Service getCheServiceBySelector(String selectorKey, String selectorValue) {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+  private Service getCheServiceBySelector(String selectorKey, String selectorValue, Subject subject)
+      throws OpenShiftException {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject))) {
       ServiceList svcs =
-          openShiftClient.services().inNamespace(this.openShiftCheProjectName).list();
+          openShiftClient
+              .services()
+              .inNamespace(
+                  openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
+              .list();
 
       Service svc =
           svcs.getItems()
@@ -1169,11 +1536,15 @@ public class OpenShiftConnector extends DockerConnector {
   }
 
   private Pod getChePodByContainerId(String containerId) throws IOException {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    Subject subject = subjectForContainerId(containerId);
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig(subject))) {
       PodList pods =
           openShiftClient
               .pods()
-              .inNamespace(this.openShiftCheProjectName)
+              .inNamespace(
+                  openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(subject))
               .withLabel(
                   CHE_CONTAINER_IDENTIFIER_LABEL_KEY,
                   KubernetesStringUtils.getLabelFromContainerID(containerId))
@@ -1223,9 +1594,11 @@ public class OpenShiftConnector extends DockerConnector {
    * @return
    */
   private ImageInfo getImageInfoFromTag(ImageStreamTag imageStreamTag) {
-    // The DockerImageConfig string here is the JSON that would be returned by a docker inspect image,
+    // The DockerImageConfig string here is the JSON that would be returned by a docker inspect
+    // image,
     // except that the capitalization is inconsistent, breaking deserialization. Top level elements
-    // are lowercased with underscores, while nested elements conform to FieldNamingPolicy.UPPER_CAMEL_CASE.
+    // are lowercased with underscores, while nested elements conform to
+    // FieldNamingPolicy.UPPER_CAMEL_CASE.
     // We're only converting the config fields for brevity; this means that other fields are null.
     Image tagImage = imageStreamTag.getImage();
     String dockerImageConfig = tagImage.getDockerImageConfig();
@@ -1250,13 +1623,18 @@ public class OpenShiftConnector extends DockerConnector {
   }
 
   protected String getCheWorkspaceId(CreateContainerParams createContainerParams) {
+    String workspaceID = getOriginalCheWorkspaceId(createContainerParams);
+    return workspaceID.replaceFirst("workspace", "");
+  }
+
+  private String getOriginalCheWorkspaceId(CreateContainerParams createContainerParams) {
     Stream<String> env = Arrays.stream(createContainerParams.getContainerConfig().getEnv());
     String workspaceID =
         env.filter(v -> v.startsWith(CHE_WORKSPACE_ID_ENV_VAR) && v.contains("="))
             .map(v -> v.split("=", 2)[1])
             .findFirst()
             .orElse("");
-    return workspaceID.replaceFirst("workspace", "");
+    return workspaceID;
   }
 
   private boolean isDevMachine(CreateContainerParams createContainerParams) {
@@ -1274,16 +1652,19 @@ public class OpenShiftConnector extends DockerConnector {
       Set<String> exposedPorts,
       Map<String, String> portsToRefName,
       Map<String, String> additionalLabels,
-      String[] endpointAliases) {
+      String[] endpointAliases)
+      throws OpenShiftException {
     Map<String, String> selector =
         Collections.singletonMap(OPENSHIFT_DEPLOYMENT_LABEL, deploymentName);
     List<ServicePort> ports = KubernetesService.getServicePortsFrom(exposedPorts, portsToRefName);
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       Service service =
           openShiftClient
               .services()
-              .inNamespace(this.openShiftCheProjectName)
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
               .createNew()
               .withNewMetadata()
               .withName(serviceName)
@@ -1303,11 +1684,13 @@ public class OpenShiftConnector extends DockerConnector {
     }
   }
 
-  private void createOpenShiftRoute(String serviceName, String deploymentName, String serverRef) {
+  private void createOpenShiftRoute(String serviceName, String deploymentName, String serverRef)
+      throws OpenShiftException {
     String routeId = serviceName.replaceFirst(CHE_OPENSHIFT_RESOURCES_PREFIX, "");
     openShiftRouteCreator.createRoute(
-        openShiftCheProjectName,
+        openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(),
         cheServerExternalAddress,
+        cheWorkspacesRoutingSuffixProvider.get(),
         serverRef,
         serviceName,
         deploymentName,
@@ -1368,7 +1751,7 @@ public class OpenShiftConnector extends DockerConnector {
         new DeploymentBuilder()
             .withNewMetadata()
             .withName(deploymentName)
-            .withNamespace(this.openShiftCheProjectName)
+            .withNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
             .endMetadata()
             .withNewSpec()
             .withReplicas(1)
@@ -1384,12 +1767,14 @@ public class OpenShiftConnector extends DockerConnector {
             .endSpec()
             .build();
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       deployment =
           openShiftClient
               .extensions()
               .deployments()
-              .inNamespace(this.openShiftCheProjectName)
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
               .create(deployment);
     }
 
@@ -1408,10 +1793,12 @@ public class OpenShiftConnector extends DockerConnector {
   private ImageStreamTag createImageStreamTag(String sourceImageWithTag, String imageStreamTagName)
       throws IOException {
 
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       openShiftClient
           .imageStreamTags()
-          .inNamespace(openShiftCheProjectName)
+          .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
           .createOrReplaceWithNew()
           .withNewMetadata()
           .withName(imageStreamTagName)
@@ -1430,14 +1817,16 @@ public class OpenShiftConnector extends DockerConnector {
         ImageStreamTag createdTag =
             openShiftClient
                 .imageStreamTags()
-                .inNamespace(openShiftCheProjectName)
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
                 .withName(imageStreamTagName)
                 .get();
         if (createdTag != null) {
           LOG.info(
               String.format(
                   "Created ImageStreamTag %s in namespace %s",
-                  createdTag.getMetadata().getName(), openShiftCheProjectName));
+                  createdTag.getMetadata().getName(),
+                  openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace()));
           return createdTag;
         }
       }
@@ -1560,8 +1949,9 @@ public class OpenShiftConnector extends DockerConnector {
       LOG.info("Making sure directory exists for workspace {}", workspaceSubpath);
       boolean succeeded =
           openShiftPvcHelper.createJobPod(
+              EnvironmentContext.getCurrent().getSubject(),
               workspacesPersistentVolumeClaim,
-              openShiftCheProjectName,
+              openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace(),
               "create-",
               OpenShiftPvcHelper.Command.MAKE,
               workspaceSubpath);
@@ -1604,7 +1994,7 @@ public class OpenShiftConnector extends DockerConnector {
     return workspaceSubpath;
   }
 
-  private List<VolumeMount> getVolumeMountsFrom(String[] volumes) {
+  private List<VolumeMount> getVolumeMountsFrom(String[] volumes) throws OpenShiftException {
     List<VolumeMount> vms = new ArrayList<>();
     PersistentVolumeClaim pvc = getClaimCheWorkspace();
     if (pvc != null) {
@@ -1632,7 +2022,7 @@ public class OpenShiftConnector extends DockerConnector {
     return vms;
   }
 
-  private List<Volume> getVolumesFrom(String[] volumes) {
+  private List<Volume> getVolumesFrom(String[] volumes) throws OpenShiftException {
     List<Volume> vs = new ArrayList<>();
     PersistentVolumeClaim pvc = getClaimCheWorkspace();
     if (pvc != null) {
@@ -1655,10 +2045,15 @@ public class OpenShiftConnector extends DockerConnector {
     return vs;
   }
 
-  private PersistentVolumeClaim getClaimCheWorkspace() {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+  private PersistentVolumeClaim getClaimCheWorkspace() throws OpenShiftException {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       PersistentVolumeClaimList pvcList =
-          openShiftClient.persistentVolumeClaims().inNamespace(openShiftCheProjectName).list();
+          openShiftClient
+              .persistentVolumeClaims()
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
+              .list();
       for (PersistentVolumeClaim pvc : pvcList.getItems()) {
         if (workspacesPersistentVolumeClaim.equals(pvc.getMetadata().getName())) {
           return pvc;
@@ -1683,14 +2078,19 @@ public class OpenShiftConnector extends DockerConnector {
               .endSpec()
               .build();
       pvc =
-          openShiftClient.persistentVolumeClaims().inNamespace(openShiftCheProjectName).create(pvc);
+          openShiftClient
+              .persistentVolumeClaims()
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
+              .create(pvc);
       LOG.info("Creating OpenShift PVC {}", pvc.getMetadata().getName());
       return pvc;
     }
   }
 
   private String waitAndRetrieveContainerID(String deploymentName) throws IOException {
-    try (OpenShiftClient openShiftClient = new DefaultOpenShiftClient()) {
+    try (OpenShiftClient openShiftClient =
+        new DefaultOpenShiftClient(
+            openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftConfig())) {
       for (int i = 0; i < OPENSHIFT_WAIT_POD_TIMEOUT; i++) {
         try {
           Thread.sleep(OPENSHIFT_WAIT_POD_DELAY);
@@ -1701,7 +2101,8 @@ public class OpenShiftConnector extends DockerConnector {
         List<Pod> pods =
             openShiftClient
                 .pods()
-                .inNamespace(this.openShiftCheProjectName)
+                .inNamespace(
+                    openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
                 .withLabel(OPENSHIFT_DEPLOYMENT_LABEL, deploymentName)
                 .list()
                 .getItems();
@@ -1721,7 +2122,7 @@ public class OpenShiftConnector extends DockerConnector {
           String normalizedID = KubernetesStringUtils.normalizeContainerID(containerID);
           openShiftClient
               .pods()
-              .inNamespace(openShiftCheProjectName)
+              .inNamespace(openshiftWorkspaceEnvironmentProvider.getWorkspacesOpenshiftNamespace())
               .withName(pod.getMetadata().getName())
               .edit()
               .editMetadata()

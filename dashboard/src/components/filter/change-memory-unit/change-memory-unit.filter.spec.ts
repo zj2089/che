@@ -46,7 +46,7 @@ describe('ChangeMemoryUnitFilter', () => {
 
     it('negative numbers', () => {
       let input = -12345678,
-          expectedResult = input;
+        expectedResult = input;
 
       let result = $filter('changeMemoryUnit')(input, ['B', 'GB']);
 
@@ -55,8 +55,8 @@ describe('ChangeMemoryUnitFilter', () => {
 
     it('unexpected unit type', () => {
       let input = 12345678,
-          unknownUnit = 'BM',
-          expectedResult = input;
+        unknownUnit = 'BM',
+        expectedResult = input;
 
       let result = $filter('changeMemoryUnit')(input, ['B', unknownUnit]);
 
@@ -70,8 +70,8 @@ describe('ChangeMemoryUnitFilter', () => {
 
     it('KB', () => {
       let number = 48 * 1024,
-          unitTo = 'KB',
-          expectedResult = 48 + ' ' + unitTo;
+        unitTo = 'KB',
+        expectedResult = 48 + ' ' + unitTo;
 
       let result = $filter('changeMemoryUnit')(number, [unitFrom, unitTo]);
 
@@ -90,8 +90,8 @@ describe('ChangeMemoryUnitFilter', () => {
 
     it('GB', () => {
       let number = 48 * Math.pow(1024, 3),
-          unitTo = 'GB',
-          expectedResult = 48 + ' ' + unitTo;
+        unitTo = 'GB',
+        expectedResult = 48 + ' ' + unitTo;
 
       let result = $filter('changeMemoryUnit')(number, [unitFrom, unitTo]);
 
@@ -100,8 +100,8 @@ describe('ChangeMemoryUnitFilter', () => {
 
     it('GB', () => {
       let number = 48 * Math.pow(1024, 4),
-          unitTo = 'TB',
-          expectedResult = 48 + ' ' + unitTo;
+        unitTo = 'TB',
+        expectedResult = 48 + ' ' + unitTo;
 
       let result = $filter('changeMemoryUnit')(number, [unitFrom, unitTo]);
 

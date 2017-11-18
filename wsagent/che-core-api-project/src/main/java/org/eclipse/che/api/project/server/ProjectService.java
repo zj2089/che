@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -219,7 +218,7 @@ public class ProjectService extends Service {
     eventService.publish(new ProjectCreatedEvent(workspace, project.getPath()));
 
     // TODO this throws NPE
-    //logProjectCreatedEvent(configDto.getName(), configDto.getProjectType());
+    // logProjectCreatedEvent(configDto.getName(), configDto.getProjectType());
 
     return injectProjectLinks(configDto);
   }
@@ -728,7 +727,8 @@ public class ProjectService extends Service {
       Iterator<FileItem> formData)
       throws ServerException, IOException, ConflictException, ForbiddenException, NotFoundException,
           BadRequestException {
-    // Not all importers uses virtual file system API. In this case virtual file system API doesn't get events and isn't able to set
+    // Not all importers uses virtual file system API. In this case virtual file system API doesn't
+    // get events and isn't able to set
     final FolderEntry baseProjectFolder = (FolderEntry) getVirtualFile(path, force);
 
     int stripNumber = 0;
@@ -889,13 +889,13 @@ public class ProjectService extends Service {
     final ArrayList<ItemReference> result = new ArrayList<>(children.size());
     for (VirtualFileEntry child : children) {
       if (child.isFile()) {
-        result.add(injectFileLinks(vcsStatusInjector.injectVcsStatus(asDto((FileEntry) child))));
+        result.add(injectFileLinks(asDto((FileEntry) child)));
       } else {
         result.add(injectFolderLinks(asDto((FolderEntry) child)));
       }
     }
 
-    return result;
+    return vcsStatusInjector.injectVcsStatus(result);
   }
 
   @GET
@@ -987,7 +987,7 @@ public class ProjectService extends Service {
     @ApiResponse(code = 409, message = "Conflict error"),
     @ApiResponse(code = 500, message = "Internal Server Error")
   })
-  public List<SearchResultDto> search(
+  public ProjectSearchResponseDto search(
       @ApiParam(value = "Path to resource, i.e. where to search?", required = true)
           @PathParam("path")
           String path,
@@ -1006,7 +1006,7 @@ public class ProjectService extends Service {
       searcher = projectManager.getSearcher();
     } catch (NotFoundException e) {
       LOG.warn(e.getLocalizedMessage());
-      return Collections.emptyList();
+      return DtoFactory.newDto(ProjectSearchResponseDto.class);
     }
 
     if (skipCount < 0) {
@@ -1024,15 +1024,15 @@ public class ProjectService extends Service {
 
     final SearchResult result = searcher.search(expr);
     final List<SearchResultEntry> searchResultEntries = result.getResults();
-    return prepareResults(searchResultEntries);
+    return DtoFactory.newDto(ProjectSearchResponseDto.class)
+        .withTotalHits(result.getTotalHits())
+        .withItemReferences(prepareResults(searchResultEntries));
   }
 
   /**
    * Prepare result for client, add additional information like line number and line content where
    * found given text
    *
-   * @param searchResultEntries
-   * @return
    * @throws ServerException
    */
   private List<SearchResultDto> prepareResults(List<SearchResultEntry> searchResultEntries)
@@ -1088,8 +1088,7 @@ public class ProjectService extends Service {
     int skipCount = request.getSkipCount();
 
     try {
-      return newDto(ProjectSearchResponseDto.class)
-          .withItemReferences(search(path, name, text, maxItems, skipCount));
+      return search(path, name, text, maxItems, skipCount);
     } catch (ServerException | ConflictException | NotFoundException | ForbiddenException e) {
       throw new JsonRpcException(-27000, e.getMessage());
     }
@@ -1145,14 +1144,11 @@ public class ProjectService extends Service {
                 .withNode(injectFolderLinks(asDto((FolderEntry) child)))
                 .withChildren(getTree((FolderEntry) child, depth - 1, includeFiles)));
       } else {
-        nodes.add(
-            newDto(TreeElement.class)
-                .withNode(
-                    injectFileLinks(vcsStatusInjector.injectVcsStatus(asDto((FileEntry) child)))));
+        nodes.add(newDto(TreeElement.class).withNode(injectFileLinks(asDto((FileEntry) child))));
       }
     }
 
-    return nodes;
+    return vcsStatusInjector.injectVcsStatusTreeElements(nodes);
   }
 
   /* --------------------------------------------------------------------------- */

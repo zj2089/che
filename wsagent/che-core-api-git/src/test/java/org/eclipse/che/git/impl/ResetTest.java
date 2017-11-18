@@ -10,6 +10,7 @@
  */
 package org.eclipse.che.git.impl;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
 import static org.eclipse.che.git.impl.GitTestUtil.CONTENT;
@@ -32,7 +33,6 @@ import org.eclipse.che.api.git.params.CommitParams;
 import org.eclipse.che.api.git.params.LogParams;
 import org.eclipse.che.api.git.params.ResetParams;
 import org.eclipse.che.api.git.shared.ResetRequest;
-import org.eclipse.che.api.git.shared.StatusFormat;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -57,7 +57,7 @@ public class ResetTest {
     dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
   )
   public void testResetHard(GitConnectionFactory connectionFactory) throws Exception {
-    //given
+    // given
     GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
     File aaa = addFile(connection, "aaa", "aaa\n");
     FileOutputStream fos = new FileOutputStream(new File(connection.getWorkingDir(), "README.txt"));
@@ -67,12 +67,12 @@ public class ResetTest {
     String initMessage = connection.log(LogParams.create()).getCommits().get(0).getMessage();
     connection.add(AddParams.create(new ArrayList<>(singletonList("."))));
     connection.commit(CommitParams.create("add file"));
-    //when
+    // when
     connection.reset(ResetParams.create("HEAD^", ResetRequest.ResetType.HARD));
-    //then
+    // then
     assertEquals(connection.log(LogParams.create()).getCommits().get(0).getMessage(), initMessage);
     assertFalse(aaa.exists());
-    assertTrue(connection.status(StatusFormat.SHORT).isClean());
+    assertTrue(connection.status(emptyList()).isClean());
     assertEquals(
         CONTENT,
         Files.toString(new File(connection.getWorkingDir(), "README.txt"), Charsets.UTF_8));
@@ -83,7 +83,7 @@ public class ResetTest {
     dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
   )
   public void testResetSoft(GitConnectionFactory connectionFactory) throws Exception {
-    //given
+    // given
     GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
     File aaa = addFile(connection, "aaa", "aaa\n");
     FileOutputStream fos = new FileOutputStream(new File(connection.getWorkingDir(), "README.txt"));
@@ -93,13 +93,13 @@ public class ResetTest {
     String initMessage = connection.log(LogParams.create()).getCommits().get(0).getMessage();
     connection.add(AddParams.create(new ArrayList<>(singletonList("."))));
     connection.commit(CommitParams.create("add file"));
-    //when
+    // when
     connection.reset(ResetParams.create("HEAD^", ResetRequest.ResetType.SOFT));
-    //then
+    // then
     assertEquals(connection.log(LogParams.create()).getCommits().get(0).getMessage(), initMessage);
     assertTrue(aaa.exists());
-    assertEquals(connection.status(StatusFormat.SHORT).getAdded().get(0), "aaa");
-    assertEquals(connection.status(StatusFormat.SHORT).getChanged().get(0), "README.txt");
+    assertEquals(connection.status(emptyList()).getAdded().get(0), "aaa");
+    assertEquals(connection.status(emptyList()).getChanged().get(0), "README.txt");
     assertEquals(
         Files.toString(new File(connection.getWorkingDir(), "README.txt"), Charsets.UTF_8),
         "MODIFIED\n");
@@ -110,7 +110,7 @@ public class ResetTest {
     dataProviderClass = org.eclipse.che.git.impl.GitConnectionFactoryProvider.class
   )
   public void testResetMixed(GitConnectionFactory connectionFactory) throws Exception {
-    //given
+    // given
     GitConnection connection = connectToGitRepositoryWithContent(connectionFactory, repository);
     File aaa = addFile(connection, "aaa", "aaa\n");
     FileOutputStream fos = new FileOutputStream(new File(connection.getWorkingDir(), "README.txt"));
@@ -120,14 +120,14 @@ public class ResetTest {
     String initMessage = connection.log(LogParams.create()).getCommits().get(0).getMessage();
     connection.add(AddParams.create(new ArrayList<>(singletonList("."))));
     connection.commit(CommitParams.create("add file"));
-    //when
+    // when
     ResetRequest resetRequest = newDto(ResetRequest.class).withCommit("HEAD^");
     connection.reset(ResetParams.create("HEAD^", ResetRequest.ResetType.MIXED));
-    //then
+    // then
     assertEquals(connection.log(LogParams.create()).getCommits().get(0).getMessage(), initMessage);
     assertTrue(aaa.exists());
-    assertEquals(connection.status(StatusFormat.SHORT).getUntracked().get(0), "aaa");
-    assertEquals(connection.status(StatusFormat.SHORT).getModified().get(0), "README.txt");
+    assertEquals(connection.status(emptyList()).getUntracked().get(0), "aaa");
+    assertEquals(connection.status(emptyList()).getModified().get(0), "README.txt");
     assertEquals(
         Files.toString(new File(connection.getWorkingDir(), "README.txt"), Charsets.UTF_8),
         "MODIFIED\n");

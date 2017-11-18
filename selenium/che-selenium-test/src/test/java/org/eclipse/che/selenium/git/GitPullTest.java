@@ -14,14 +14,13 @@ import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADE
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
@@ -48,7 +47,7 @@ public class GitPullTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -65,26 +64,20 @@ public class GitPullTest {
   @Inject private Loader loader;
   @Inject private CodenvyEditor editor;
   @Inject private Consoles consoles;
-  @Inject private TestSshServiceClient testSshServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
   @Inject private TestGitHubServiceClient gitHubClientService;
 
   @BeforeClass
   public void prepare() throws Exception {
-    try {
-      String publicKey = testSshServiceClient.generateGithubKey();
-      gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-    } catch (ConflictException ignored) {
-      // already generated
-    }
-
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
     ide.open(ws);
   }
 
   @Test
   public void pullTest() throws Exception {
-    //Reset test repository's HEAD to default commit
+    // Reset test repository's HEAD to default commit
     gitHubClientService.hardResetHeadToCommit(
         REPO_NAME, DEFAULT_COMMIT_SSH, gitHubUsername, gitHubPassword);
     projectExplorer.waitProjectExplorer();
@@ -95,7 +88,7 @@ public class GitPullTest {
 
     projectExplorer.quickExpandWithJavaScript();
 
-    //Change contents index.jsp
+    // Change contents index.jsp
     loader.waitOnClosed();
     projectExplorer.openItemByPath(FIRST_PROJECT_NAME + "/my-webapp/src/main/webapp/index.jsp");
     editor.waitActiveEditor();
@@ -106,7 +99,7 @@ public class GitPullTest {
     editor.closeFileByNameWithSaving("index.jsp");
     editor.waitWhileFileIsClosed("index.jsp");
 
-    //Change contents in java file
+    // Change contents in java file
     projectExplorer.openItemByPath(
         FIRST_PROJECT_NAME + "/my-webapp/src/main/java/helloworld/GreetingController.java");
     editor.waitActiveEditor();
@@ -118,7 +111,7 @@ public class GitPullTest {
     editor.closeFileByNameWithSaving("GreetingController");
     editor.waitWhileFileIsClosed("GreetingController");
 
-    //Remove web.xml from index
+    // Remove web.xml from index
     projectExplorer.selectItem(FIRST_PROJECT_NAME + "/my-webapp/src/main/webapp/WEB-INF/web.xml");
     menu.runCommand(
         TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.REMOVE_FROM_INDEX);
@@ -127,7 +120,7 @@ public class GitPullTest {
     git.confirmRemoveFromIndexForm();
     loader.waitOnClosed();
 
-    //Add all files to index
+    // Add all files to index
     projectExplorer.waitItem(
         FIRST_PROJECT_NAME + "/my-webapp/src/main/java/helloworld/GreetingController.java");
     projectExplorer.waitItem(FIRST_PROJECT_NAME + "/my-webapp/src/main/webapp/index.jsp");
@@ -138,7 +131,7 @@ public class GitPullTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(TestGitConstants.GIT_ADD_TO_INDEX_SUCCESS);
 
-    //Commit and push changes
+    // Commit and push changes
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.COMMIT);
     git.waitAndRunCommit(COMMIT_MESSAGE);
     menu.runCommand(

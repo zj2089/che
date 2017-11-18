@@ -119,7 +119,7 @@ public class Git {
    */
   public void waitGitStatusBarWithMess(String expextedMess) {
     loader.waitOnClosed();
-    gitStatusBar.waitMesageIntoGitInfoPAnel(expextedMess);
+    gitStatusBar.waitMessageInGitTab(expextedMess);
   }
 
   /** wait and click on the 'navigate button' in the 'git console' */
@@ -608,11 +608,6 @@ public class Git {
   /** wait the main form 'Git Compare' is open */
   public void waitGitCompareFormIsOpen() {
     gitCompare.waitGitCompareFormIsOpen();
-  }
-
-  /** switch to the frame 'git compare' form */
-  public void toSwitchFrameGitCompareForm() {
-    gitCompare.toSwitchFrameGitCompareForm();
   }
 
   /** wait the main form 'Git Compare' is closed */

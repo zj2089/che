@@ -18,14 +18,13 @@ import static org.eclipse.che.selenium.core.constant.TestTimeoutsConstants.LOADE
 
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
-import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestGitHubServiceClient;
-import org.eclipse.che.selenium.core.client.TestSshServiceClient;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
 import org.eclipse.che.selenium.pageobject.Consoles;
@@ -57,7 +56,7 @@ public class PushingChangesTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -77,20 +76,14 @@ public class PushingChangesTest {
   @Inject private NotificationsPopupPanel notifications;
   @Inject private Wizard projectWizard;
   @Inject private ImportProjectFromLocation importProject;
-  @Inject private TestSshServiceClient testSshServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
   @Inject private TestGitHubServiceClient gitHubClientService;
 
   @BeforeClass
   public void prepare() throws Exception {
-    try {
-      String publicKey = testSshServiceClient.generateGithubKey();
-      gitHubClientService.uploadPublicKey(gitHubUsername, gitHubPassword, publicKey);
-    } catch (ConflictException ignored) {
-      // already generated
-    }
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
-
     ide.open(ws);
   }
 
@@ -99,7 +92,7 @@ public class PushingChangesTest {
     gitHubClientService.hardResetHeadToCommit(
         REPO_NAME, DEFAULT_COMMIT_SSH, gitHubUsername, gitHubPassword);
 
-    //Clone project
+    // Clone project
     projectExplorer.waitProjectExplorer();
     menu.runCommand(
         TestMenuCommandsConstants.Workspace.WORKSPACE,
@@ -115,7 +108,7 @@ public class PushingChangesTest {
     projectExplorer.waitProjectExplorer();
     projectExplorer.waitItem(PROJECT_NAME);
 
-    //Create new file and push it.
+    // Create new file and push it.
     git.createNewFileAndPushItToGitHub(PROJECT_NAME, "new.html");
     consoles.waitProcessInProcessConsoleTree("Git push", LOADER_TIMEOUT_SEC);
 
@@ -127,7 +120,7 @@ public class PushingChangesTest {
     loader.waitOnClosed();
     events.waitExpectedMessage(PUSH_MSG);
 
-    //Change contents index.jsp
+    // Change contents index.jsp
     projectExplorer.quickExpandWithJavaScript();
     projectExplorer.openItemByPath(PROJECT_NAME + "/my-webapp/src/main/webapp/index.jsp");
     editor.waitActiveEditor();
@@ -137,7 +130,7 @@ public class PushingChangesTest {
     editor.closeFileByNameWithSaving("index.jsp");
     editor.waitWhileFileIsClosed("index.jsp");
 
-    //Edit GreetingController.java
+    // Edit GreetingController.java
     projectExplorer.openItemByVisibleNameInExplorer("GreetingController.java");
     editor.waitActiveEditor();
     editor.typeTextIntoEditor(Keys.DOWN.toString());
@@ -148,7 +141,7 @@ public class PushingChangesTest {
     editor.closeFileByNameWithSaving("GreetingController");
     editor.waitWhileFileIsClosed("GreetingController");
 
-    //Commit changes
+    // Commit changes
     projectExplorer.selectVisibleItem("GreetingController.java");
     menu.runCommand(GIT, COMMIT);
     git.waitAndRunCommit(COMMIT_MESSAGE);
@@ -157,7 +150,7 @@ public class PushingChangesTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(TestGitConstants.COMMIT_MESSAGE_SUCCESS);
 
-    //Push changes
+    // Push changes
     menu.runCommand(GIT, REMOTES_TOP, PUSH);
     loader.waitOnClosed();
     git.waitPushFormToOpen();
@@ -169,7 +162,7 @@ public class PushingChangesTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(PUSH_MSG);
 
-    //Call Push again
+    // Call Push again
     menu.runCommand(GIT, REMOTES_TOP, PUSH);
     loader.waitOnClosed();
     git.waitPushFormToOpen();
@@ -181,7 +174,7 @@ public class PushingChangesTest {
     events.waitExpectedMessage(PUSH_MSG);
     events.clearAllMessages();
 
-    //Soft reset
+    // Soft reset
     gitHubClientService.hardResetHeadToCommit(
         REPO_NAME, DEFAULT_COMMIT_SSH, gitHubUsername, gitHubPassword);
     menu.runCommand(TestMenuCommandsConstants.Git.GIT, TestMenuCommandsConstants.Git.RESET);
@@ -191,7 +184,7 @@ public class PushingChangesTest {
     git.clickResetBtn();
     git.waitResetWindowClose();
 
-    //Commit changes and push directly from commit window
+    // Commit changes and push directly from commit window
     projectExplorer.selectItem(PROJECT_NAME);
     menu.runCommand(GIT, COMMIT);
     git.waitAndRunCommitWithPush(COMMIT_MESSAGE, "origin/master");
@@ -201,7 +194,7 @@ public class PushingChangesTest {
     events.waitExpectedMessage(TestGitConstants.COMMIT_MESSAGE_SUCCESS);
     events.waitExpectedMessage(PUSH_MSG);
 
-    //Amend commit
+    // Amend commit
     projectExplorer.selectVisibleItem("GreetingController.java");
     menu.runCommand(GIT, COMMIT);
     git.waitAndRunAmendCommitMessage(COMMIT_MESSAGE);
@@ -210,7 +203,7 @@ public class PushingChangesTest {
     events.clickProjectEventsTab();
     events.waitExpectedMessage(TestGitConstants.COMMIT_MESSAGE_SUCCESS);
 
-    //Force push
+    // Force push
     menu.runCommand(GIT, REMOTES_TOP, PUSH);
     loader.waitOnClosed();
     git.waitPushFormToOpen();

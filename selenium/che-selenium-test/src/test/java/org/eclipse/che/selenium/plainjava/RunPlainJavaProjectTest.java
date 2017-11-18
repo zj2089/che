@@ -26,7 +26,7 @@ import com.google.inject.Inject;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
 import org.eclipse.che.selenium.core.constant.TestProjectExplorerContextMenuConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
 import org.eclipse.che.selenium.pageobject.CodenvyEditor;
@@ -59,7 +59,7 @@ public class RunPlainJavaProjectTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
   @Inject private ProjectExplorer projectExplorer;
   @Inject private CodenvyEditor codenvyEditor;
   @Inject private ConfigureClasspath configureClasspath;
@@ -177,7 +177,7 @@ public class RunPlainJavaProjectTest {
     loader.waitOnClosed();
     projectExplorer.waitItem(PROJECT_NAME + "/bin");
 
-    //check starting application
+    // check starting application
     commandsEditor.selectTabByName(NAME_COMMAND);
     commandsEditor.waitActiveTabFileName(NAME_COMMAND);
     commandsEditor.clickOnRunButton();

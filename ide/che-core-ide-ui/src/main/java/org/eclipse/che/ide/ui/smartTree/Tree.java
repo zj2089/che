@@ -631,11 +631,24 @@ public class Tree extends FocusWidget
   }
 
   /**
-   * Scroll focus element into specific node.
+   * Scroll focus element into specific node and set focus on the tree. Use {@link
+   * #scrollIntoView(Node, boolean)} when setting focus is not required.
    *
    * @param node node to scroll
    */
   public void scrollIntoView(Node node) {
+    scrollIntoView(node, true);
+  }
+
+  /**
+   * Scroll focus element into specific node. Set focus on the tree when {@code isFocusRequired} is
+   * {@code true}. Does not perform any operations with focus when {@code isFocusRequired} is {@code
+   * false}
+   *
+   * @param node node to scroll
+   * @param isFocusRequired whether tree should take focus after scroll
+   */
+  public void scrollIntoView(Node node, boolean isFocusRequired) {
     checkNotNull(node, NULL_NODE_MSG);
     NodeDescriptor descriptor = getNodeDescriptor(node);
     if (descriptor == null) {
@@ -648,7 +661,10 @@ public class Tree extends FocusWidget
     container.scrollIntoView();
     focusEl.getStyle().setLeft((nodeStorage.getDepth(node) - 1) * 16, Style.Unit.PX);
     focusEl.getStyle().setTop(container.getOffsetTop(), Style.Unit.PX);
-    setFocus(true);
+
+    if (isFocusRequired) {
+      setFocus(true);
+    }
   }
 
   @Override
@@ -759,7 +775,7 @@ public class Tree extends FocusWidget
       if (isAttached()) {
         moveFocus(getContainer(null));
       }
-      getEmptyStatus().paint(); //draw empty label
+      getEmptyStatus().paint(); // draw empty label
     }
   }
 
@@ -838,7 +854,7 @@ public class Tree extends FocusWidget
     }
 
     NodeDescriptor nodeDescriptor = getNodeDescriptor(node);
-    if (view.getRootContainer(nodeDescriptor) == null) {
+    if (nodeDescriptor == null || view.getRootContainer(nodeDescriptor) == null) {
       return;
     }
 
@@ -846,7 +862,7 @@ public class Tree extends FocusWidget
       return;
     }
 
-    ((HasPresentation) node).getPresentation(true); //update presentation
+    ((HasPresentation) node).getPresentation(true); // update presentation
     Element el =
         getPresentationRenderer()
             .render(
@@ -1011,7 +1027,7 @@ public class Tree extends FocusWidget
 
                 for (int i = vr[0]; i <= vr[1]; i++) {
                   if (goInto.isActive()) {
-                    //constraint node indention
+                    // constraint node indention
                     int goIntoDirDepth = nodeStorage.getDepth(goInto.getLastUsed());
                     int currentNodeDepth = nodeStorage.getDepth(visible.get(i));
 
@@ -1137,50 +1153,57 @@ public class Tree extends FocusWidget
   }
 
   private void onExpand(Node node, NodeDescriptor nodeDescriptor, boolean deep) {
-    if (isLeaf(node)) {
-      return;
-    }
+    Scheduler.get()
+        .scheduleDeferred(
+            () -> {
+              if (isLeaf(node)) {
+                return;
+              }
 
-    if (nodeDescriptor.isLoading()) { //node may have been already requested for expanding
-      return;
-    }
+              if (nodeDescriptor
+                  .isLoading()) { // node may have been already requested for expanding
+                return;
+              }
 
-    if (!nodeDescriptor.isExpanded() && nodeLoader != null && (!nodeDescriptor.isLoaded())) {
-      nodeStorage.removeChildren(node);
-      nodeDescriptor.setExpand(true);
-      nodeDescriptor.setExpandDeep(deep);
-      nodeDescriptor.setLoading(true);
-      view.onLoadChange(nodeDescriptor, true);
-      nodeLoader.loadChildren(node);
-      return;
-    }
+              if (!nodeDescriptor.isExpanded()
+                  && nodeLoader != null
+                  && (!nodeDescriptor.isLoaded())) {
+                nodeStorage.removeChildren(node);
+                nodeDescriptor.setExpand(true);
+                nodeDescriptor.setExpandDeep(deep);
+                nodeDescriptor.setLoading(true);
+                view.onLoadChange(nodeDescriptor, true);
+                nodeLoader.loadChildren(node);
+                return;
+              }
 
-    if (!fireCancellableEvent(new BeforeExpandNodeEvent(node))) {
-      if (deep) {
-        nodeDescriptor.setExpandDeep(false);
-      }
+              if (!fireCancellableEvent(new BeforeExpandNodeEvent(node))) {
+                if (deep) {
+                  nodeDescriptor.setExpandDeep(false);
+                }
 
-      return;
-    }
+                return;
+              }
 
-    if (!nodeDescriptor.isExpanded()) {
-      nodeDescriptor.setExpanded(true);
+              if (!nodeDescriptor.isExpanded()) {
+                nodeDescriptor.setExpanded(true);
 
-      if (!nodeDescriptor.isChildrenRendered()) {
-        renderChildren(node);
-        nodeDescriptor.setChildrenRendered(true);
-      }
+                if (!nodeDescriptor.isChildrenRendered()) {
+                  renderChildren(node);
+                  nodeDescriptor.setChildrenRendered(true);
+                }
 
-      //direct expand on the view
-      view.expand(nodeDescriptor);
+                // direct expand on the view
+                view.expand(nodeDescriptor);
 
-      update();
-      fireEvent(new ExpandNodeEvent(node));
-    }
+                update();
+                fireEvent(new ExpandNodeEvent(node));
+              }
 
-    if (deep) {
-      setExpandChildren(node, true);
-    }
+              if (deep) {
+                setExpandChildren(node, true);
+              }
+            });
   }
 
   private void setExpandChildren(Node node, boolean expand) {
@@ -1321,10 +1344,10 @@ public class Tree extends FocusWidget
     focusEl.getStyle().setTop(0, Style.Unit.PX);
     focusEl.getStyle().setPosition(Style.Position.ABSOLUTE);
 
-    //subscribe for Event.FOCUSEVENTS
+    // subscribe for Event.FOCUSEVENTS
     int bits =
         DOM.getEventsSunk(
-            (Element) focusEl.cast()); //do not remove redundant cast, GWT tests will fail
+            (Element) focusEl.cast()); // do not remove redundant cast, GWT tests will fail
     DOM.sinkEvents((Element) focusEl.cast(), bits | Event.FOCUSEVENTS);
   }
 
@@ -1426,7 +1449,7 @@ public class Tree extends FocusWidget
     }
   }
 
-  @SuppressWarnings("unused") //temporary no need to use event parameter
+  @SuppressWarnings("unused") // temporary no need to use event parameter
   private void onClear(StoreClearEvent event) {
     clear();
   }
@@ -1468,7 +1491,7 @@ public class Tree extends FocusWidget
     }
   }
 
-  @SuppressWarnings("unused") //temporary no need to use event parameter
+  @SuppressWarnings("unused") // temporary no need to use event parameter
   private void onSort(StoreSortEvent se) {
     redraw(null);
   }

@@ -32,6 +32,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
 import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.BadRequestException;
+import org.eclipse.che.api.core.notification.EventService;
+import org.eclipse.che.api.core.rest.annotations.Required;
 import org.eclipse.che.api.git.exception.GitException;
 import org.eclipse.che.api.git.params.AddParams;
 import org.eclipse.che.api.git.params.CheckoutParams;
@@ -58,6 +60,7 @@ import org.eclipse.che.api.git.shared.Commiters;
 import org.eclipse.che.api.git.shared.ConfigRequest;
 import org.eclipse.che.api.git.shared.Constants;
 import org.eclipse.che.api.git.shared.DiffType;
+import org.eclipse.che.api.git.shared.EditedRegion;
 import org.eclipse.che.api.git.shared.FetchRequest;
 import org.eclipse.che.api.git.shared.MergeRequest;
 import org.eclipse.che.api.git.shared.MergeResult;
@@ -73,12 +76,14 @@ import org.eclipse.che.api.git.shared.RemoteAddRequest;
 import org.eclipse.che.api.git.shared.RemoteUpdateRequest;
 import org.eclipse.che.api.git.shared.RepoInfo;
 import org.eclipse.che.api.git.shared.ResetRequest;
+import org.eclipse.che.api.git.shared.RevertRequest;
+import org.eclipse.che.api.git.shared.RevertResult;
 import org.eclipse.che.api.git.shared.Revision;
 import org.eclipse.che.api.git.shared.ShowFileContentResponse;
 import org.eclipse.che.api.git.shared.Status;
-import org.eclipse.che.api.git.shared.StatusFormat;
 import org.eclipse.che.api.git.shared.Tag;
 import org.eclipse.che.api.git.shared.TagCreateRequest;
+import org.eclipse.che.api.git.shared.event.GitRepositoryDeletedEvent;
 import org.eclipse.che.api.project.server.FolderEntry;
 import org.eclipse.che.api.project.server.ProjectRegistry;
 import org.eclipse.che.api.project.server.RegisteredProject;
@@ -99,6 +104,8 @@ public class GitService {
   @Inject private GitConnectionFactory gitConnectionFactory;
 
   @Inject private ProjectRegistry projectRegistry;
+
+  @Inject private EventService eventService;
 
   @QueryParam("projectPath")
   private String projectPath;
@@ -248,6 +255,17 @@ public class GitService {
   }
 
   @GET
+  @Path("edits")
+  @Produces(MediaType.APPLICATION_JSON)
+  public List<EditedRegion> getEditedRegions(@Required @QueryParam("filePath") String file)
+      throws ApiException {
+    requiredNotNull(file, "File path");
+    try (GitConnection gitConnection = getGitConnection()) {
+      return gitConnection.getEditedRegions(file);
+    }
+  }
+
+  @GET
   @Path("show")
   @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN})
   public ShowFileContentResponse showFileContent(
@@ -288,6 +306,7 @@ public class GitService {
     final FolderEntry gitFolder = project.getBaseFolder().getChildFolder(".git");
     gitFolder.getVirtualFile().delete();
     projectRegistry.removeProjectType(projectPath, GitProjectType.TYPE_ID);
+    eventService.publish(newDto(GitRepositoryDeletedEvent.class));
   }
 
   @GET
@@ -436,12 +455,21 @@ public class GitService {
     }
   }
 
+  @POST
+  @Path("revert")
+  @Consumes(MediaType.APPLICATION_JSON)
+  public RevertResult revert(RevertRequest request) throws ApiException {
+    try (GitConnection gitConnection = getGitConnection()) {
+      return gitConnection.revert(request.getCommit());
+    }
+  }
+
   @GET
   @Path("status")
   @Produces({MediaType.APPLICATION_JSON, MediaType.TEXT_PLAIN})
-  public Status status(@QueryParam("format") StatusFormat format) throws ApiException {
+  public Status status(@QueryParam("filter") List<String> filter) throws ApiException {
     try (GitConnection gitConnection = getGitConnection()) {
-      return gitConnection.status(format);
+      return gitConnection.status(filter);
     }
   }
 
@@ -498,7 +526,7 @@ public class GitService {
             String value = config.get(entry);
             result.put(entry, value);
           } catch (GitException exception) {
-            //value for this config property non found. Do nothing
+            // value for this config property non found. Do nothing
           }
         }
       }
@@ -535,7 +563,7 @@ public class GitService {
           try {
             config.unset(entry);
           } catch (GitException exception) {
-            //value for this config property non found. Do nothing
+            // value for this config property non found. Do nothing
           }
         }
       }
@@ -557,5 +585,18 @@ public class GitService {
 
   private GitConnection getGitConnection() throws ApiException {
     return gitConnectionFactory.getConnection(getAbsoluteProjectPath(projectPath));
+  }
+
+  /**
+   * Checks object reference is not {@code null}
+   *
+   * @param object object reference to check
+   * @param subject used as subject of exception message "{subject} required"
+   * @throws BadRequestException when object reference is {@code null}
+   */
+  private void requiredNotNull(Object object, String subject) throws BadRequestException {
+    if (object == null) {
+      throw new BadRequestException(subject + " required");
+    }
   }
 }

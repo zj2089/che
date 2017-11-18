@@ -41,18 +41,7 @@ getRecommendedThreadCount() {
 }
 
 detectDockerInterfaceIp() {
-    local interfaces=("docker"
-                      "docker0")
-
-    for interface in ${interfaces[@]}; do
-        ifconfig ${interface} >/dev/null 2>&1
-        if [[ $? == 0 ]]; then
-            echo $(/sbin/ifconfig ${interface} | grep 'inet ' |  awk '{print $2}' | sed -e "s#addr:##")
-            return 0
-        fi
-    done
-
-    return 1
+    docker run --rm --net host eclipse/che-ip:nightly
 }
 
 ####################################################################################
@@ -85,6 +74,7 @@ WEBDRIVER_VERSION=$(curl -s http://chromedriver.storage.googleapis.com/LATEST_RE
 WEBDRIVER_PORT="9515"
 NODE_CHROME_DEBUG_SUFFIX=
 THREADS=$(getRecommendedThreadCount)
+WORKSPACE_POOL_SIZE=0
 
 ACTUAL_RESULTS=()
 COMPARE_WITH_CI=false
@@ -155,6 +145,7 @@ checkParameters() {
         elif [[ "$var" =~ -P.* ]]; then :
         elif [[ "$var" == "--help" ]]; then :
         elif [[ "$var" == "--compare-with-ci" ]]; then :
+        elif [[ "$var" =~ --workspace-pool-size=auto|[0-9]+$ ]]; then :
         elif [[ "$var" =~ ^[0-9]+$ ]] && [[ $@ =~ --compare-with-ci[[:space:]]$var ]]; then :
         else
             printHelp
@@ -188,6 +179,9 @@ applyCustomOptions() {
         elif [[ "$var" =~ --threads=.* ]]; then
             THREADS=$(echo "$var" | sed -e "s/--threads=//g")
 
+        elif [[ "$var" =~ --workspace-pool-size=.* ]]; then
+            WORKSPACE_POOL_SIZE=$(echo "$var" | sed -e "s/--workspace-pool-size=//g")
+
         elif [[ "$var" == "--rerun" ]]; then
             RERUN=true
 
@@ -209,6 +203,7 @@ defineTestsScope() {
         if [[ "$var" =~ --test=.* ]]; then
             TESTS_SCOPE="-Dit.test="$(echo "$var" | sed -e "s/--test=//g")
             TEST_INCLUSION=${TEST_INCLUSION_SINGLE_TEST}
+            THREADS=1
 
         elif [[ "$var" =~ --suite=.* ]]; then
             TESTS_SCOPE="-DrunSuite=src/test/resources/suites/"$(echo "$var" | sed -e "s/--suite=//g")
@@ -345,25 +340,25 @@ prepareTestSuite() {
 
     TESTS_SCOPE="-DrunSuite=${TMP_SUITE_PATH}"
 
-    if [[ ${TEST_INCLUSION} == ${TEST_INCLUSION_STABLE} || ${TEST_INCLUSION} == ${TEST_INCLUSION_STABLE_AND_UNSTABLE} ]]; then
-        # set number of threads directly in the suite
-        sed -i -e "s#thread-count=\"[^\"]*\"#thread-count=\"${THREADS}\"#" "$TMP_SUITE_PATH"
+    # set number of threads directly in the suite
+    sed -i -e "s#thread-count=\"[^\"]*\"#thread-count=\"${THREADS}\"#" "$TMP_SUITE_PATH"
 
-        if [[ ${TEST_INCLUSION} == ${TEST_INCLUSION_STABLE_AND_UNSTABLE} ]]; then
-            # remove "<methods>" tags from temporary suite
-            methodsSectionNumber=$(grep -oe "<methods>" <<< echo "$TMP_SUITE_PATH" | wc -l);
+    if [[ ${TEST_INCLUSION} == ${TEST_INCLUSION_STABLE_AND_UNSTABLE} ]]; then
+        # remove "<methods>" tags from temporary suite
+        methodsSectionNumber=$(grep -oe "<methods>" <<< echo "$TMP_SUITE_PATH" | wc -l);
 
-            for (( c=1; c<=$methodsSectionNumber; c++ )); do
-                sed -i -e '1h;2,$H;$!d;g' -e "s/\(<class.*\)<methods>.*<\/methods>\(.*<\/class>\)/\1\2/" "$TMP_SUITE_PATH"
-            done
-        fi
-
+        for (( c=1; c<=$methodsSectionNumber; c++ )); do
+            sed -i -e '1h;2,$H;$!d;g' -e "s/\(<class.*\)<methods>.*<\/methods>\(.*<\/class>\)/\1\2/" "$TMP_SUITE_PATH"
+        done
     elif [[ ${TEST_INCLUSION} == ${TEST_INCLUSION_UNSTABLE} ]]; then
         # replace "<exclude>"  on "<include>" tags in temporary suite
         sed -i "s/<exclude/<include/" "$TMP_SUITE_PATH"
 
         # remove "<class ... />" tags
         sed -i "s/<class.*\/>//" "$TMP_SUITE_PATH"
+
+        # remove sub-suites in order to not having unstable tests there and get rid of stable/unstable model soon
+        sed -i -i -e '1h;2,$H;$!d;g' -e "s/<suite-files>.*<\/suite-files>//" "$TMP_SUITE_PATH"
     fi
 }
 
@@ -387,20 +382,25 @@ Modes (defines environment to run tests):
     local                               All tests will be run in a Web browser on the developer machine.
                                         Recommended if test visualization is needed and for debugging purpose.
 
-        Options that go with 'local' mode:
-        --web-driver-version=<VERSION>  To use the specific version of the WebDriver, be default the latest will be used: "${WEBDRIVER_VERSION}"
-        --web-driver-port=<PORT>        To run WebDriver on the specific port, by default: "${WEBDRIVER_PORT}"
-        --threads=<THREADS>             Number of tests that will be run simultaneously. It also means the very same number of
+    Options that go with 'local' mode:
+    --web-driver-version=<VERSION>      To use the specific version of the WebDriver, be default the latest will be used: "${WEBDRIVER_VERSION}"
+    --web-driver-port=<PORT>            To run WebDriver on the specific port, by default: "${WEBDRIVER_PORT}"
+    --threads=<THREADS>                 Number of tests that will be run simultaneously. It also means the very same number of
                                         Web browsers will be opened on the developer machine.
-                                        Default value is in range [2,5] and depends on available RAM.
+                                        Default value is in range [2,5] and depends on available RAM.                                        
+    --workspace-pool-size=[<SIZE>|auto] Size of test workspace pool.
+                                        Default value is 0, that means that test workspaces are created on demand.
 
 
     grid (default)                      All tests will be run in parallel on several docker containers.
                                         One container per thread. Recommended to run test suite.
 
-        Options that go with 'grid' mode:
-            --threads=<THREADS>         Number of tests that will be run simultaneously.
+    Options that go with 'grid' mode:
+    --threads=<THREADS>                 Number of tests that will be run simultaneously.
                                         Default value is in range [2,5] and depends on available RAM.
+    --workspace-pool-size=[<SIZE>|auto] Size of test workspace pool.
+                                        Default value is 0, that means that test workspaces are created on demand.
+
 
 Define tests scope:
     --all-tests                         Run all tests within the suite despite of <exclude>/<include> sections in the test suite.
@@ -452,14 +452,15 @@ printRunOptions() {
     echo "[TEST] Tests inclusion     : "${!TEST_INCLUSION_MSG}
     echo "[TEST] Rerun failing tests : "${RERUN}
     echo "[TEST] ==================================================="
-    echo "[TEST] Product Protocol : "${PRODUCT_PROTOCOL}
-    echo "[TEST] Product Host     : "${PRODUCT_HOST}
-    echo "[TEST] Tests            : "${TESTS_SCOPE}
-    echo "[TEST] Threads          : "${THREADS}
-    echo "[TEST] Web browser      : "${BROWSER}
-    echo "[TEST] Web driver ver   : "${WEBDRIVER_VERSION}
-    echo "[TEST] Web driver port  : "${WEBDRIVER_PORT}
-    echo "[TEST] Additional opts  : "${GRID_OPTIONS}" "${DEBUG_OPTIONS}" "${MAVEN_OPTIONS}
+    echo "[TEST] Product Protocol    : "${PRODUCT_PROTOCOL}
+    echo "[TEST] Product Host        : "${PRODUCT_HOST}
+    echo "[TEST] Tests               : "${TESTS_SCOPE}
+    echo "[TEST] Threads             : "${THREADS}
+    echo "[TEST] Workspace pool size : "${WORKSPACE_POOL_SIZE}
+    echo "[TEST] Web browser         : "${BROWSER}
+    echo "[TEST] Web driver ver      : "${WEBDRIVER_VERSION}
+    echo "[TEST] Web driver port     : "${WEBDRIVER_PORT}
+    echo "[TEST] Additional opts     : "${GRID_OPTIONS}" "${DEBUG_OPTIONS}" "${MAVEN_OPTIONS}
     echo "[TEST] ==================================================="
 }
 
@@ -513,7 +514,7 @@ fetchFailedTestsNumber() {
 
 detectLatestResultsUrl() {
     local job=$(curl -s ${BASE_ACTUAL_RESULTS_URL} | tr '\n' ' ' | sed 's/.*Last build (#\([0-9]\+\)).*/\1/')
-    echo ${BASE_ACTUAL_RESULTS_URL}${job}"/"
+    echo ${BASE_ACTUAL_RESULTS_URL}${job}"/testReport/"
 }
 
 # Fetches list of failed tests and failed configurations.
@@ -526,22 +527,14 @@ fetchActualResults() {
     if [[ ! ${job} =~ ^[0-9]+$ ]]; then
         ACTUAL_RESULTS_URL=$(detectLatestResultsUrl)
     else
-        ACTUAL_RESULTS_URL=${BASE_ACTUAL_RESULTS_URL}${job}"/"
+        ACTUAL_RESULTS_URL=${BASE_ACTUAL_RESULTS_URL}${job}"/testReport/"
     fi
 
-    # from 'Failed Tests:' to 'Skipped Tests:'
-    local actualResults=($(curl -s ${ACTUAL_RESULTS_URL} | \
+    # get list of failed tests from CI server, remove duplicates from it and sort
+    ACTUAL_RESULTS=$(echo $( curl -s ${ACTUAL_RESULTS_URL} | \
                            tr '>' '\n' | tr '<' '\n' | tr '"' '\n'  | \
-                           grep -A9999999 "Failed Tests:" | grep -B9999999 "Skipped Tests:" | \
-                           grep [a-z][a-z0-9_]*[.][a-z] | grep -v http | grep -v junit ))
-
-    # from 'Failed Configurations:' to 'Skipped Configurations:'
-    actualResults+=($(curl -s ${ACTUAL_RESULTS_URL} | \
-                     tr '>' '\n' | tr '<' '\n' | tr '"' '\n'  | \
-                     grep -A9999999 "Failed Configurations:" | grep -B9999999 "Skipped Configurations:" | \
-                     grep [a-z][a-z0-9_]*[.][a-z] | grep -v http | grep -v junit))
-
-    ACTUAL_RESULTS=$(echo ${actualResults[*]} | tr ' ' '\n' | sort | uniq)
+                           grep --extended-regexp "^[a-z_$][a-z0-9_$.]*\.[A-Z_$][a-zA-Z0-9_$]*\.[a-z_$][a-zA-Z0-9_$]*$" | \
+                           tr ' ' '\n' | sort | uniq ))
 }
 
 findRegressions() {
@@ -647,7 +640,8 @@ printProposals() {
                           sed -e "s/--suite=[^ ]*//g " | \
                           sed -e "s/--test*=[^ ]*//g " | \
                           sed -e "s/--compare-with-ci\W*[0-9]*//g" | \
-                          sed -e "s/--threads=[0-9]*//g")
+                          sed -e "s/--threads=[0-9]*//g" | \
+                          sed -e "s/--workspace-pool-size=[0-9]*//g")
 
     local regressions=$(findRegressions)
     local total=$(echo ${regressions[@]} | wc -w)
@@ -702,6 +696,7 @@ runTests() {
                 -Ddriver.version=${WEBDRIVER_VERSION} \
                 -Dbrowser=${BROWSER} \
                 -Dthreads=${THREADS} \
+                -Dworkspace_pool_size=${WORKSPACE_POOL_SIZE} \
                 ${DEBUG_OPTIONS} \
                 ${GRID_OPTIONS} \
                 ${MAVEN_OPTIONS}
@@ -725,40 +720,14 @@ rerunTests() {
         echo -e "[TEST] "${YELLOW}" Rerunning failed tests in one thread, attempt #"${rerun}${NO_COLOUR}
         echo "[TEST]"
 
-        local fails=$(fetchFailedTests)
-        local failsClasses=$(getTestClasses ${fails[*]})
-        local tmpScreenshots=${TMP_DIR}"/qa/screenshots"
-        local tmpReports=${TMP_DIR}"/qa/reports"
-        local originalScreenshots="target/screenshots"
-
-        rm -rf ${tmpScreenshots} ${tmpReports}
-        mkdir -p ${tmpScreenshots} ${tmpReports}
-
-        rm -rf ${originalScreenshots}
-
         defineTestsScope "--failed-tests"
         runTests
-
-        if [[ -f ${TESTNG_FAILED_SUITE} ]]; then
-            # preserve failed test info
-            cp ${originalScreenshots}/*.png ${tmpScreenshots}
-            cp ${FAILSAFE_DIR}/TEST-*.xml ${tmpReports}
-            cp ${FAILSAFE_DIR}/*.txt ${tmpReports}
-        fi
-
-        # restore info
-        rm -rf ${FAILSAFE_DIR}
-        mkdir -p ${FAILSAFE_DIR}
-        rm -rf ${originalScreenshots}
-        cp -r ${tmpScreenshots} ${originalScreenshots}
-        cp ${tmpReports}/* ${FAILSAFE_DIR}
 
         if [[ ${rerun} < ${MAX_RERUN} ]]; then
             rerunTests $(($rerun+1)) $@
         fi
     fi
 }
-
 
 # Finds regressions and generates testng-failed.xml suite bases on them.
 generateTestNgFailedReport() {
@@ -846,7 +815,7 @@ storeTestReport() {
     if [[ -f ${TMP_SUITE_PATH} ]]; then
         cp ${TMP_SUITE_PATH} target/suite;
     fi
-    zip -qr ${report} target/screenshots target/site target/failsafe-reports target/log target/bin target/suite
+    zip -qr ${report} target/screenshots target/htmldumps target/site target/failsafe-reports target/log target/bin target/suite
 
     echo -e "[TEST] Tests results and reports are saved to ${BLUE}${report}${NO_COLOUR}"
     echo "[TEST]"
@@ -908,10 +877,13 @@ else
 fi
 
 analyseTestsResults $@
-generateFailSafeReport
-printProposals $@
-storeTestReport
-printElapsedTime
+
+if [[ ${COMPARE_WITH_CI} == false ]]; then
+    generateFailSafeReport
+    printProposals $@
+    storeTestReport
+    printElapsedTime
+fi
 
 if [[ ${TESTS_SCOPE} =~ -DrunSuite ]] \
       && [[ $(fetchFailedTestsNumber) == 0 ]] \

@@ -18,7 +18,11 @@ is_current_user_sudoer() {
 }
 
 set_sudo_command() {
-    if is_current_user_sudoer && ! is_current_user_root; then SUDO="sudo -E"; else unset SUDO; fi
+    if is_current_user_sudoer && ! is_current_user_root; then
+        SUDO="sudo -E"
+    else
+        unset SUDO;
+    fi
 }
 
 set_sudo_command
@@ -54,10 +58,11 @@ fi
 MACHINE_TYPE=$(uname -m)
 
 mkdir -p ${CHE_DIR}
-${SUDO} mkdir -p /projects
-${SUDO} sh -c "chown -R $(id -u -n) /projects"
-${SUDO} chmod 755 /projects
 
+if is_current_user_sudoer; then
+    ${SUDO} mkdir -p /projects
+    ${SUDO} sh -c "chown -R $(id -u -n) /projects"
+fi
 
 INSTALL_JDK=false
 command -v ${JAVA_HOME}/bin/java >/dev/null 2>&1 || {
@@ -216,7 +221,7 @@ elif echo ${LINUX_TYPE} | grep -qi "CentOS"; then
          ln -s /usr/lib/jvm/java-1.8.0-openjdk $JAVA_HOME
      fi
 
-# Red Hat Enterprise Linux 6 
+# Red Hat Enterprise Linux 6
 ############################
 elif echo ${LINUX_TYPE} | grep -qi "Red Hat"; then
     if [ ${INSTALL_JDK} = true ]; then

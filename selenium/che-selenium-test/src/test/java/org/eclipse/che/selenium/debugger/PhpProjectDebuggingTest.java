@@ -85,7 +85,8 @@ public class PhpProjectDebuggingTest {
 
   @BeforeMethod
   public void startDebug() {
-    // goto root item in the Project Explorer to have proper value of ${current.project.path} when executing maven command.
+    // goto root item in the Project Explorer to have proper value of ${current.project.path} when
+    // executing maven command.
     projectExplorer.selectItem(PROJECT);
   }
 
@@ -120,33 +121,35 @@ public class PhpProjectDebuggingTest {
     notificationPopup.waitExpectedMessageOnProgressPanelAndClosed("Remote debugger connected");
 
     projectExplorer.openItemByPath(PATH_TO_LIB_PHP);
-    editor.setBreakPointAndWaitActiveState(14);
+    editor.setBreakpoint(14);
     editor.closeAllTabs();
 
     projectExplorer.openItemByPath(PATH_TO_INDEX_PHP);
     projectExplorer.invokeCommandWithContextMenu(
         ProjectExplorer.CommandsGoal.COMMON, PROJECT, DEBUG_PHP_SCRIPT_COMMAND_NAME);
+
     debugPanel.openDebugPanel();
 
     // then
     debugPanel.waitDebugHighlightedText("<?php include 'lib.php';?>");
-    debugPanel.waitTextInVariablesPanel("$_GET: array [0]");
+    debugPanel.waitTextInVariablesPanel("$_GET=array [0]");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.RESUME_BTN_ID);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.RESUME_BTN_ID);
 
     // then
     editor.waitTabFileWithSavedStatus("lib.php");
-    debugPanel.waitDebugHighlightedText("return \"Hello, \" + $name;");
-    debugPanel.waitTextInVariablesPanel("$name: \"man\"");
+    editor.waitActiveBreakpoint(14);
+    debugPanel.waitDebugHighlightedText("return \"Hello, $name\"");
+    debugPanel.waitTextInVariablesPanel("$name=\"man\"");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OUT);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
 
-    //then
+    // then
     editor.waitTabFileWithSavedStatus("index.php");
     debugPanel.waitDebugHighlightedText("echo sayHello(\"man\");");
-    debugPanel.waitTextInVariablesPanel("$_GET: array [0]");
+    debugPanel.waitTextInVariablesPanel("$_GET=array [0]");
   }
 
   @Test(priority = 1)
@@ -168,7 +171,7 @@ public class PhpProjectDebuggingTest {
             NON_DEFAULT_DEBUG_PORT));
 
     projectExplorer.openItemByPath(PATH_TO_LIB_PHP);
-    editor.setBreakPointAndWaitActiveState(14);
+    editor.setBreakpoint(14);
     editor.closeAllTabs();
 
     projectExplorer.openItemByPath(PATH_TO_INDEX_PHP);
@@ -181,16 +184,17 @@ public class PhpProjectDebuggingTest {
 
     // then
     editor.waitTabFileWithSavedStatus("lib.php");
-    debugPanel.waitDebugHighlightedText("return \"Hello, \" + $name;");
-    debugPanel.waitTextInVariablesPanel("$name: \"man\"");
+    editor.waitActiveBreakpoint(14);
+    debugPanel.waitDebugHighlightedText("return \"Hello, $name\"");
+    debugPanel.waitTextInVariablesPanel("$name=\"man\"");
 
     // when
-    debugPanel.clickOnButton(DebugPanel.DebuggerButtonsPanel.STEP_OUT);
+    debugPanel.clickOnButton(DebugPanel.DebuggerActionButtons.STEP_OUT);
 
-    //then
+    // then
     editor.waitTabFileWithSavedStatus("index.php");
     debugPanel.waitDebugHighlightedText("echo sayHello(\"man\");");
-    debugPanel.waitTextInVariablesPanel("$_GET: array [3]");
+    debugPanel.waitTextInVariablesPanel("$_GET=array [3]");
   }
 
   /**

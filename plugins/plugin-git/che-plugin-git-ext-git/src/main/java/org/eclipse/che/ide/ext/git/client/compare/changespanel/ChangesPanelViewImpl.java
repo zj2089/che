@@ -31,6 +31,7 @@ import org.eclipse.che.ide.FontAwesome;
 import org.eclipse.che.ide.api.data.tree.Node;
 import org.eclipse.che.ide.ext.git.client.GitLocalizationConstant;
 import org.eclipse.che.ide.ext.git.client.GitResources;
+import org.eclipse.che.ide.ext.git.client.compare.AlteredFiles;
 import org.eclipse.che.ide.ext.git.client.compare.FileStatus.Status;
 import org.eclipse.che.ide.project.shared.NodesResources;
 import org.eclipse.che.ide.resource.Path;
@@ -101,19 +102,20 @@ public class ChangesPanelViewImpl extends Composite implements ChangesPanelView 
   }
 
   @Override
-  public void viewChangedFiles(Map<String, Status> files, ViewMode viewMode) {
+  public void viewChangedFiles(AlteredFiles files, ViewMode viewMode) {
     NodeStorage nodeStorage = tree.getNodeStorage();
     nodeStorage.clear();
     if (viewMode == TREE) {
-      getGroupedNodes(files).forEach(nodeStorage::add);
+      getGroupedNodes(files.getChangedFilesMap()).forEach(nodeStorage::add);
       tree.expandAll();
     } else {
       files
-          .keySet()
+          .getAlteredFilesList()
           .forEach(
               file ->
                   nodeStorage.add(
-                      new ChangedFileNode(file, files.get(file), nodesResources, delegate, false)));
+                      new ChangedFileNode(
+                          file, files.getStatusByFilePath(file), nodesResources, delegate, false)));
     }
   }
 
@@ -200,7 +202,7 @@ public class ChangesPanelViewImpl extends Composite implements ChangesPanelView 
     Map<String, Node> preparedNodes = new HashMap<>();
     for (int i = getMaxNestedLevel(allFiles); i > 0; i--) {
 
-      //Collect child files of all folders of current nesting level
+      // Collect child files of all folders of current nesting level
       Map<String, List<Node>> currentChildNodes = new HashMap<>();
       for (String file : allFiles) {
         Path pathName = Path.valueOf(file);
@@ -218,7 +220,7 @@ public class ChangesPanelViewImpl extends Composite implements ChangesPanelView 
         }
       }
 
-      //Map child files to related folders of current nesting level or just create a common folder
+      // Map child files to related folders of current nesting level or just create a common folder
       for (String path : allFolders) {
         nodePaths.add(Path.valueOf(path));
         if (!(Path.valueOf(path).segmentCount() == i - 1)) {
@@ -233,7 +235,7 @@ public class ChangesPanelViewImpl extends Composite implements ChangesPanelView 
         preparedNodes.put(path, folder);
       }
 
-      //Take all child folders and nest them to related parent folders of current nesting level
+      // Take all child folders and nest them to related parent folders of current nesting level
       List<String> currentPaths = new ArrayList<>(preparedNodes.keySet());
       for (String parentPath : currentPaths) {
         List<Node> nodesToNest = new ArrayList<>();

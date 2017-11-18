@@ -13,6 +13,7 @@ package org.eclipse.che.plugin.testing.ide.inject;
 import com.google.gwt.inject.client.AbstractGinModule;
 import com.google.gwt.inject.client.assistedinject.GinFactoryModuleBuilder;
 import org.eclipse.che.ide.api.extension.ExtensionGinModule;
+
 /**
  * Gin Module for test runner extension.
  *
@@ -27,14 +28,7 @@ public class TestingGinModule extends AbstractGinModule {
             .build(
                 org.eclipse.che.plugin.testing.ide.view.navigation.factory.TestResultNodeFactory
                     .class));
-    install(
-        new GinFactoryModuleBuilder()
-            .build(
-                org.eclipse.che.plugin.testing.ide.view2.navigation.factory.TestResultNodeFactory
-                    .class));
 
-    bind(org.eclipse.che.plugin.testing.ide.view2.TestResultView.class)
-        .to(org.eclipse.che.plugin.testing.ide.view2.TestResultViewImpl.class);
     bind(org.eclipse.che.plugin.testing.ide.view.TestResultView.class)
         .to(org.eclipse.che.plugin.testing.ide.view.TestResultViewImpl.class);
   }

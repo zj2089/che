@@ -13,10 +13,11 @@ package org.eclipse.che.selenium.git;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
 import org.eclipse.che.commons.lang.NameGenerator;
+import org.eclipse.che.selenium.core.client.TestGitHubKeyUploader;
 import org.eclipse.che.selenium.core.client.TestUserPreferencesServiceClient;
 import org.eclipse.che.selenium.core.constant.TestGitConstants;
 import org.eclipse.che.selenium.core.constant.TestMenuCommandsConstants;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.TestWorkspace;
 import org.eclipse.che.selenium.pageobject.AskDialog;
 import org.eclipse.che.selenium.pageobject.AskForValueDialog;
@@ -43,7 +44,7 @@ public class GitCompareTest {
 
   @Inject private TestWorkspace ws;
   @Inject private Ide ide;
-  @Inject private DefaultTestUser productUser;
+  @Inject private TestUser productUser;
 
   @Inject
   @Named("github.username")
@@ -58,12 +59,16 @@ public class GitCompareTest {
   @Inject private AskDialog askDialog;
   @Inject private WarningDialog warningDialog;
   @Inject private TestUserPreferencesServiceClient testUserPreferencesServiceClient;
+  @Inject private TestGitHubKeyUploader testGitHubKeyUploader;
 
   @BeforeClass
   public void prepare() throws Exception {
+    testGitHubKeyUploader.updateGithubKey();
     testUserPreferencesServiceClient.addGitCommitter(gitHubUsername, productUser.getEmail());
+
     ide.open(ws);
     projectExplorer.waitProjectExplorer();
+
     String repoUrl = "https://github.com/" + gitHubUsername + "/spring-project-for-compare.git";
     git.importJavaApp(repoUrl, PROJECT_NAME, Wizard.TypeProject.MAVEN);
     createBranch();
@@ -97,10 +102,8 @@ public class GitCompareTest {
     git.selectFileInChangedFilesTreePanel("GreetingController.java");
     git.clickOnGroupCompareButton();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor("// <<< checking compare content >>>");
     git.waitTextNotPresentIntoCompareRightEditor("// <<< checking compare content >>>");
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
     git.closeGroupGitCompareForm();
 
@@ -147,13 +150,11 @@ public class GitCompareTest {
     git.selectFileInChangedFilesTreePanel("A.java");
     git.clickOnGroupCompareButton();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor("public class A");
     git.setFocusOnLeftGitCompareEditor();
     git.setCursorToLine(2, LEFT_COMPARE_ST);
     git.typeTextIntoGitCompareEditor("//***che***codenvy***");
     git.waitExpTextIntoCompareLeftEditor("//***che***codenvy***");
-    ide.driver().switchTo().parentFrame();
     git.clickOnGitCompareCloseButton();
     askDialog.confirmAndWaitClosed();
     git.waitGitCompareFormIsClosed();
@@ -193,10 +194,8 @@ public class GitCompareTest {
     git.clickOnCompareBranchFormButton();
     loader.waitOnClosed();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor("// <<< checking compare content >>>");
     git.waitTextNotPresentIntoCompareRightEditor("// <<< checking compare content >>>");
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
 
     // check the 'git compare' for remote branch
@@ -210,10 +209,8 @@ public class GitCompareTest {
     git.clickOnCompareBranchFormButton();
     loader.waitOnClosed();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor("// <<< checking compare content >>>");
     git.waitTextNotPresentIntoCompareRightEditor("// <<< checking compare content >>>");
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
 
     // check the 'git compare' for revision
@@ -234,10 +231,8 @@ public class GitCompareTest {
     git.selectRevisionIntoCompareRevisionForm(1);
     git.clickOnRevisionCompareButton();
     git.waitGitCompareFormIsOpen();
-    git.toSwitchFrameGitCompareForm();
     git.waitExpTextIntoCompareLeftEditor("// <<< checking compare content >>>");
     git.waitTextNotPresentIntoCompareRightEditor("// <<< checking compare content >>>");
-    ide.driver().switchTo().parentFrame();
     git.closeGitCompareForm();
     git.waitGitCompareRevisionFormIsOpen();
     git.clickOnCloseRevisionButton();

@@ -10,7 +10,7 @@
  */
 package org.eclipse.che.plugin.traefik;
 
-import static org.mockito.Matchers.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -79,7 +79,7 @@ public class TraefikCreateContainerInterceptorTest {
   protected void setup() throws Exception {
 
     this.customServerEvaluationStrategy =
-        new CustomServerEvaluationStrategy("10.0.0.1", "127.0.0.1", TEMPLATE, "http", "8080");
+        new CustomServerEvaluationStrategy("10.0.0.1", "127.0.0.1", TEMPLATE, "http", "8080", null);
     when(serverEvaluationStrategyProvider.get()).thenReturn(customServerEvaluationStrategy);
     traefikCreateContainerInterceptor.setServerEvaluationStrategyProvider(
         serverEvaluationStrategyProvider);
@@ -112,6 +112,16 @@ public class TraefikCreateContainerInterceptorTest {
     envImageConfig = new String[] {"HELLO"};
     when(containerConfig.getEnv()).thenReturn(envContainerConfig);
     when(imageInfoConfig.getEnv()).thenReturn(envImageConfig);
+  }
+
+  @Test
+  public void testRulesWithNullImageLabels() throws Throwable {
+    when(imageInfoConfig.getLabels()).thenReturn(null);
+    containerLabels.put("foo1", "bar");
+
+    traefikCreateContainerInterceptor.invoke(methodInvocation);
+
+    Assert.assertFalse(containerLabels.containsKey("traefik.service-tomcat8.frontend.rule"));
   }
 
   @Test
@@ -170,7 +180,8 @@ public class TraefikCreateContainerInterceptorTest {
 
     traefikCreateContainerInterceptor.invoke(methodInvocation);
 
-    // Check we didn't do any interaction on method invocation if strategy is another one, only proceed
+    // Check we didn't do any interaction on method invocation if strategy is another one, only
+    // proceed
     verify(methodInvocation).proceed();
     verify(methodInvocation, never()).getThis();
   }

@@ -15,14 +15,16 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Answers.RETURNS_DEEP_STUBS;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyObject;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.RETURNS_SMART_NULLS;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -30,7 +32,6 @@ import static org.mockito.Mockito.when;
 import com.google.common.base.Optional;
 import com.google.gwtmockito.GwtMockitoTestRunner;
 import com.google.web.bindery.event.shared.EventBus;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestHandlerConfigurator;
@@ -50,6 +51,7 @@ import org.eclipse.che.api.debug.shared.dto.action.StartActionDto;
 import org.eclipse.che.api.debug.shared.dto.action.StepIntoActionDto;
 import org.eclipse.che.api.debug.shared.dto.action.StepOutActionDto;
 import org.eclipse.che.api.debug.shared.dto.action.StepOverActionDto;
+import org.eclipse.che.api.debug.shared.model.Breakpoint;
 import org.eclipse.che.api.debug.shared.model.DebuggerInfo;
 import org.eclipse.che.api.debug.shared.model.Location;
 import org.eclipse.che.api.debug.shared.model.SimpleValue;
@@ -61,8 +63,6 @@ import org.eclipse.che.api.promises.client.Operation;
 import org.eclipse.che.api.promises.client.OperationException;
 import org.eclipse.che.api.promises.client.Promise;
 import org.eclipse.che.api.promises.client.PromiseError;
-import org.eclipse.che.commons.annotation.Nullable;
-import org.eclipse.che.ide.api.debug.Breakpoint;
 import org.eclipse.che.ide.api.debug.BreakpointManager;
 import org.eclipse.che.ide.api.debug.DebuggerServiceClient;
 import org.eclipse.che.ide.api.filetypes.FileType;
@@ -81,6 +81,7 @@ import org.eclipse.che.ide.util.storage.LocalStorage;
 import org.eclipse.che.ide.util.storage.LocalStorageProvider;
 import org.eclipse.che.plugin.debugger.ide.BaseTest;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -89,6 +90,8 @@ import org.mockito.Mock;
 import org.mockito.MockSettings;
 import org.mockito.MockitoAnnotations;
 import org.mockito.internal.creation.MockSettingsImpl;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /**
  * Testing {@link AbstractDebugger} functionality.
@@ -99,18 +102,21 @@ import org.mockito.internal.creation.MockSettingsImpl;
  */
 @RunWith(GwtMockitoTestRunner.class)
 public class DebuggerTest extends BaseTest {
+  @Rule public MockitoRule mrule = MockitoJUnit.rule().silent();
+
   private static final String DEBUG_INFO = "debug_info";
   private static final String SESSION_ID = "debugger_id";
+  private static final long THREAD_ID = 1;
+  private static final int FRAME_INDEX = 0;
 
   public static final int LINE_NUMBER = 20;
-  public static final String FQN = "org.test.Test";
   public static final String PATH = "test/src/main/java/Test.java";
 
   @Mock private DebuggerServiceClient service;
   @Mock private DtoFactory dtoFactory;
   @Mock private LocalStorageProvider localStorageProvider;
   @Mock private EventBus eventBus;
-  @Mock private ActiveFileHandler activeFileHandler;
+  @Mock private DebuggerLocationHandlerManager debuggerLocationHandlerManager;
   @Mock private DebuggerManager debuggerManager;
   @Mock private NotificationManager notificationManager;
   @Mock private BreakpointManager breakpointManager;
@@ -143,8 +149,6 @@ public class DebuggerTest extends BaseTest {
 
   @Captor private ArgumentCaptor<Operation<DebuggerInfo>> argumentCaptorOperationJavaDebuggerInfo;
 
-  public final Breakpoint TEST_BREAKPOINT =
-      new Breakpoint(Breakpoint.Type.BREAKPOINT, LINE_NUMBER, PATH, file, true);
   public DebuggerDescriptor debuggerDescriptor;
 
   private AbstractDebugger debugger;
@@ -172,17 +176,18 @@ public class DebuggerTest extends BaseTest {
     doReturn(Path.valueOf(PATH)).when(file).getLocation();
 
     debugger =
-        new TestDebugger(
-            service,
-            transmitter,
-            configurator,
-            dtoFactory,
-            localStorageProvider,
-            eventBus,
-            activeFileHandler,
-            debuggerManager,
-            notificationManager,
-            "id");
+        spy(
+            new TestDebugger(
+                service,
+                transmitter,
+                configurator,
+                dtoFactory,
+                localStorageProvider,
+                eventBus,
+                debuggerManager,
+                notificationManager,
+                "id",
+                debuggerLocationHandlerManager));
     doReturn(promiseInfo).when(service).getSessionInfo(SESSION_ID);
     doReturn(promiseInfo).when(promiseInfo).then(any(Operation.class));
 
@@ -405,27 +410,15 @@ public class DebuggerTest extends BaseTest {
     when(resource.getRelatedProject()).thenReturn(optional);
     doReturn(promiseVoid).when(service).addBreakpoint(SESSION_ID, breakpointDto);
     doReturn(promiseVoid).when(promiseVoid).then((Operation<Void>) any());
-    when(locationDto.withLineNumber(LINE_NUMBER + 1)).thenReturn(locationDto);
-    when(locationDto.withResourcePath(PATH)).thenReturn(locationDto);
-    when(locationDto.withResourceProjectPath(PATH)).thenReturn(locationDto);
-    when(locationDto.withTarget(anyString())).thenReturn(locationDto);
-    when(breakpointDto.withLocation(locationDto)).thenReturn(breakpointDto);
-    when(breakpointDto.withEnabled(true)).thenReturn(breakpointDto);
+    doReturn(breakpointDto).when(debugger).toDto(any(Breakpoint.class));
 
-    debugger.addBreakpoint(virtualFile, LINE_NUMBER);
+    debugger.addBreakpoint(breakpointDto);
 
-    verify(locationDto).withLineNumber(LINE_NUMBER + 1);
-    verify(locationDto).withTarget(FQN);
-    verify(locationDto).withResourcePath(PATH);
-    verify(locationDto).withResourceProjectPath(PATH);
-
-    verify(breakpointDto).withLocation(locationDto);
-    verify(breakpointDto).withEnabled(true);
-
+    verify(service).addBreakpoint(SESSION_ID, breakpointDto);
     verify(promiseVoid).then(operationVoidCaptor.capture());
     operationVoidCaptor.getValue().apply(null);
     verify(observer).onBreakpointAdded(breakpointCaptor.capture());
-    assertEquals(breakpointCaptor.getValue(), TEST_BREAKPOINT);
+    assertEquals(breakpointCaptor.getValue(), breakpointDto);
 
     verify(promiseVoid).catchError(operationPromiseErrorCaptor.capture());
     operationPromiseErrorCaptor.getValue().apply(promiseError);
@@ -433,29 +426,17 @@ public class DebuggerTest extends BaseTest {
   }
 
   @Test
-  public void testAddBreakpointWithoutConnection() throws Exception {
-    debugger.setDebugSession(null);
-    debugger.addBreakpoint(file, LINE_NUMBER);
-
-    verify(service, never()).addBreakpoint(any(), any());
-    verify(observer).onBreakpointAdded(breakpointCaptor.capture());
-    assertEquals(breakpointCaptor.getValue(), TEST_BREAKPOINT);
-  }
-
-  @Test
   public void testDeleteBreakpoint() throws Exception {
     doReturn(promiseVoid).when(service).deleteBreakpoint(SESSION_ID, locationDto);
     doReturn(promiseVoid).when(promiseVoid).then((Operation<Void>) any());
+    doReturn(locationDto).when(debugger).toDto(any(Location.class));
 
-    debugger.deleteBreakpoint(file, LINE_NUMBER);
-
-    verify(locationDto).setLineNumber(LINE_NUMBER + 1);
-    verify(locationDto).setTarget(FQN);
+    debugger.deleteBreakpoint(breakpointDto);
 
     verify(promiseVoid).then(operationVoidCaptor.capture());
     operationVoidCaptor.getValue().apply(null);
     verify(observer).onBreakpointDeleted(breakpointCaptor.capture());
-    assertEquals(TEST_BREAKPOINT, breakpointCaptor.getValue());
+    assertEquals(breakpointDto, breakpointCaptor.getValue());
 
     verify(promiseVoid).catchError(operationPromiseErrorCaptor.capture());
     operationPromiseErrorCaptor.getValue().apply(promiseError);
@@ -465,7 +446,7 @@ public class DebuggerTest extends BaseTest {
   @Test
   public void testDeleteBreakpointWithoutConnection() throws Exception {
     debugger.setDebugSession(null);
-    debugger.deleteBreakpoint(file, LINE_NUMBER);
+    debugger.deleteBreakpoint(breakpointDto);
 
     verify(service, never()).deleteBreakpoint(any(), any());
   }
@@ -500,15 +481,23 @@ public class DebuggerTest extends BaseTest {
     final Variable variable = mock(Variable.class);
     final Promise<SimpleValueDto> promiseValue = mock(Promise.class);
 
+    SimpleValueDto simpleValueDto = mock(SimpleValueDto.class);
+    doReturn(simpleValueDto).when(dtoFactory).createDto(SimpleValueDto.class);
+    doReturn(simpleValueDto).when(simpleValueDto).withString(nullable(String.class));
+
+    SimpleValue simpleValue = mock(SimpleValue.class);
+    doReturn(simpleValue).when(variable).getValue();
+
+    doReturn(simpleValue).when(variable).getValue();
     doReturn(variableDto).when(dtoFactory).createDto(VariableDto.class);
     doReturn(mock(VariablePathDto.class)).when(dtoFactory).createDto(VariablePathDto.class);
     doReturn(mock(VariablePathDto.class)).when(variable).getVariablePath();
-    doReturn(Collections.emptyList()).when(variable).getVariables();
-    doReturn(promiseValue).when(service).getValue(SESSION_ID, variableDto);
+
+    doReturn(promiseValue).when(service).getValue(SESSION_ID, variableDto, THREAD_ID, FRAME_INDEX);
     doReturn(promiseValue).when(promiseValue).then((Function<SimpleValueDto, Object>) any());
     doReturn(promiseValue).when(promiseValue).catchError((Operation<PromiseError>) any());
 
-    Promise<SimpleValue> result = debugger.getValue(variable);
+    Promise<? extends SimpleValue> result = debugger.getValue(variable, THREAD_ID, FRAME_INDEX);
     assertEquals(promiseValue, result);
   }
 
@@ -516,9 +505,9 @@ public class DebuggerTest extends BaseTest {
   public void testGetValueWithoutConnection() throws Exception {
     debugger.setDebugSession(null);
 
-    debugger.getValue(null);
+    debugger.getValue(null, THREAD_ID, FRAME_INDEX);
 
-    verify(service, never()).getValue(any(), any());
+    verify(service, never()).getValue(any(), any(), eq(THREAD_ID), eq(FRAME_INDEX));
   }
 
   @Test
@@ -528,7 +517,9 @@ public class DebuggerTest extends BaseTest {
     final String json = "json";
     doReturn(json).when(dtoFactory).toJson(mockStackFrameDumpDto);
 
-    doReturn(promiseStackFrameDump).when(service).getStackFrameDump(SESSION_ID);
+    doReturn(promiseStackFrameDump)
+        .when(service)
+        .getStackFrameDump(SESSION_ID, THREAD_ID, FRAME_INDEX);
     doReturn(promiseStackFrameDump)
         .when(promiseStackFrameDump)
         .then((Function<StackFrameDumpDto, Object>) any());
@@ -536,7 +527,7 @@ public class DebuggerTest extends BaseTest {
         .when(promiseStackFrameDump)
         .catchError((Operation<PromiseError>) any());
 
-    Promise<StackFrameDump> result = debugger.dumpStackFrame();
+    Promise<? extends StackFrameDump> result = debugger.getStackFrameDump(THREAD_ID, FRAME_INDEX);
     assertEquals(promiseStackFrameDump, result);
   }
 
@@ -544,26 +535,26 @@ public class DebuggerTest extends BaseTest {
   public void testGetStackFrameDumpWithoutConnection() throws Exception {
     debugger.setDebugSession(null);
 
-    debugger.dumpStackFrame();
+    debugger.getStackFrameDump(THREAD_ID, FRAME_INDEX);
 
-    verify(service, never()).getStackFrameDump(any());
+    verify(service, never()).getStackFrameDump(any(), eq(THREAD_ID), eq(FRAME_INDEX));
   }
 
   @Test
   public void testEvaluateExpression() throws Exception {
     final String expression = "a = 1";
     Promise<String> promiseString = mock(Promise.class);
-    doReturn(promiseString).when(service).evaluate(SESSION_ID, expression);
+    doReturn(promiseString).when(service).evaluate(SESSION_ID, expression, THREAD_ID, FRAME_INDEX);
 
-    Promise<String> result = debugger.evaluate(expression);
+    Promise<String> result = debugger.evaluate(expression, THREAD_ID, FRAME_INDEX);
     assertEquals(promiseString, result);
   }
 
   @Test
   public void testEvaluateExpressionWithoutConnection() throws Exception {
     debugger.setDebugSession(null);
-    debugger.evaluate("any");
-    verify(service, never()).evaluate(any(), any());
+    debugger.evaluate("any", THREAD_ID, FRAME_INDEX);
+    verify(service, never()).evaluate(any(), any(), eq(THREAD_ID), eq(FRAME_INDEX));
   }
 
   @Test
@@ -577,20 +568,24 @@ public class DebuggerTest extends BaseTest {
     VariableDto variableDto = mock(VariableDto.class);
     doReturn(variableDto).when(dtoFactory).createDto(VariableDto.class);
 
+    SimpleValueDto simpleValueDto = mock(SimpleValueDto.class);
+    doReturn(simpleValueDto).when(dtoFactory).createDto(SimpleValueDto.class);
+    doReturn(simpleValueDto).when(simpleValueDto).withString(anyString());
     Variable variable = mock(Variable.class);
     doReturn(mock(VariablePathDto.class)).when(dtoFactory).createDto(VariablePathDto.class);
     doReturn(variablePath).when(variable).getVariablePath();
-    doReturn(newValue).when(variable).getValue();
-    doReturn(Collections.emptyList()).when(variable).getVariables();
+    SimpleValue simpleValue = mock(SimpleValue.class);
+    doReturn(newValue).when(simpleValue).getString();
+    doReturn(simpleValue).when(variable).getValue();
 
-    doReturn(promiseVoid).when(service).setValue(SESSION_ID, variableDto);
+    doReturn(promiseVoid).when(service).setValue(SESSION_ID, variableDto, THREAD_ID, FRAME_INDEX);
     doReturn(promiseVoid).when(promiseVoid).then((Operation<Void>) any());
 
-    debugger.setValue(variable);
+    debugger.setValue(variable, THREAD_ID, FRAME_INDEX);
 
     verify(promiseVoid).then(operationVoidCaptor.capture());
     operationVoidCaptor.getValue().apply(null);
-    verify(observer).onValueChanged(path, newValue);
+    verify(observer).onValueChanged(variable, THREAD_ID, FRAME_INDEX);
 
     verify(promiseVoid).catchError(operationPromiseErrorCaptor.capture());
     operationPromiseErrorCaptor.getValue().apply(promiseError);
@@ -606,10 +601,10 @@ public class DebuggerTest extends BaseTest {
         DtoFactory dtoFactory,
         LocalStorageProvider localStorageProvider,
         EventBus eventBus,
-        ActiveFileHandler activeFileHandler,
         DebuggerManager debuggerManager,
         NotificationManager notificationManager,
-        String id) {
+        String id,
+        DebuggerLocationHandlerManager debuggerLocationHandlerManager) {
       super(
           service,
           transmitter,
@@ -617,23 +612,12 @@ public class DebuggerTest extends BaseTest {
           dtoFactory,
           localStorageProvider,
           eventBus,
-          activeFileHandler,
           debuggerManager,
           notificationManager,
           breakpointManager,
-          id,
-          requestHandlerManager);
-    }
-
-    @Override
-    protected String fqnToPath(Location location) {
-      return PATH;
-    }
-
-    @Nullable
-    @Override
-    protected String pathToFqn(VirtualFile file) {
-      return FQN;
+          requestHandlerManager,
+          debuggerLocationHandlerManager,
+          id);
     }
 
     @Override

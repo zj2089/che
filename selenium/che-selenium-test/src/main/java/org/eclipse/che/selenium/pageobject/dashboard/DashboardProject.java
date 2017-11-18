@@ -40,9 +40,10 @@ public class DashboardProject {
 
   public enum Template {
     WEB_JAVA_SPRING("web-java-spring"),
-    CONSOLE_JAVA_SIMPLE("console-java-simple");
+    CONSOLE_JAVA_SIMPLE("console-java-simple"),
+    WEB_JAVA_PETCLINIC("web-java-petclinic");
 
-    private String value;
+    private final String value;
 
     Template(String value) {
       this.value = value;

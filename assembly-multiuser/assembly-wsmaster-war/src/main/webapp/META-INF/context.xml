@@ -11,7 +11,14 @@
       Red Hat, Inc. - initial API and implementation
 
 -->
-<Context allowCasualMultipartParsing="true" >
+<Context allowCasualMultipartParsing="true" sessionCookiePath="/api">
+
+    <JarScanner>
+        <JarScanFilter
+          defaultPluggabilityScan="false"
+          defaultTldScan="false"
+          pluggabilityScan=""></JarScanFilter>
+    </JarScanner>
 
     <Resource name="jdbc/che" auth="Container"
               type="javax.sql.DataSource"

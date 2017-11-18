@@ -10,25 +10,33 @@
  */
 package org.eclipse.che.selenium.core.client;
 
+import static java.util.Optional.ofNullable;
 import static java.util.stream.Collectors.toList;
 import static org.eclipse.che.dto.server.DtoFactory.newDto;
+import static org.slf4j.LoggerFactory.getLogger;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.reflect.TypeToken;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import javax.xml.bind.DatatypeConverter;
+import org.eclipse.che.api.core.ApiException;
 import org.eclipse.che.api.core.rest.HttpJsonRequestFactory;
 import org.eclipse.che.api.core.rest.HttpJsonResponse;
 import org.eclipse.che.dto.server.JsonStringMapImpl;
 import org.eclipse.che.plugin.github.shared.GitHubKey;
+import org.slf4j.Logger;
 
 /** @author Mihail Kuznyetsov. */
 @Singleton
 public class TestGitHubServiceClient {
+  private static final Logger LOG = getLogger(TestGitHubServiceClient.class);
+
   private final HttpJsonRequestFactory requestFactory;
 
   @Inject
@@ -58,15 +66,15 @@ public class TestGitHubServiceClient {
         .request();
   }
 
-  public void uploadPublicKey(final String username, final String password, final String key)
+  public void uploadPublicKey(
+      final String username, final String password, final String key, String keyTitle)
       throws Exception {
-    final String sshKeyTitle = "QA selenium test";
 
     GitHubKey publicSshKey = newDto(GitHubKey.class);
-    publicSshKey.setTitle(sshKeyTitle);
+    publicSshKey.setTitle(keyTitle);
     publicSshKey.setKey(key);
 
-    deletePublicKeys(username, password, sshKeyTitle);
+    deletePublicKeys(username, password, keyTitle);
     createPublicKey(username, password, publicSshKey);
   }
 
@@ -183,9 +191,12 @@ public class TestGitHubServiceClient {
           .setAuthorizationHeader(createBasicAuthHeader(username, password))
           .request();
     }
+
+    LOG.debug("Application grants '{}' were removed from github.com", grandsId);
   }
 
-  public String getName(final String username, final String password) throws Exception {
+  public String getName(final String username, final String password)
+      throws IOException, ApiException {
     String url = "https://api.github.com/users/" + username;
     HttpJsonResponse response =
         requestFactory
@@ -193,8 +204,20 @@ public class TestGitHubServiceClient {
             .useGetMethod()
             .setAuthorizationHeader(createBasicAuthHeader(username, password))
             .request();
+
+    return obtainNameFromResponse(response);
+  }
+
+  /**
+   * Obtain name of github user from github response
+   *
+   * @param response
+   * @return name if it presents in response and != null, or login otherwise.
+   */
+  private String obtainNameFromResponse(HttpJsonResponse response) throws IOException {
     Map<String, String> properties = response.asProperties();
-    return properties.getOrDefault("name", properties.get("login"));
+    String login = properties.get("login");
+    return ofNullable(properties.getOrDefault("name", login)).orElse(login);
   }
 
   private String createBasicAuthHeader(String username, String password)
@@ -202,5 +225,40 @@ public class TestGitHubServiceClient {
     byte[] nameAndPass = (username + ":" + password).getBytes("UTF-8");
     String base64 = DatatypeConverter.printBase64Binary(nameAndPass);
     return "Basic " + base64;
+  }
+
+  public String getUserPublicPrimaryEmail(String username, String password) throws Exception {
+    String url = "https://api.github.com/user/public_emails";
+    HttpJsonResponse response =
+        requestFactory
+            .fromUrl(url)
+            .useGetMethod()
+            .setAuthorizationHeader(createBasicAuthHeader(username, password))
+            .request();
+
+    @SuppressWarnings("unchecked")
+    List<Map<String, String>> properties =
+        response.as(List.class, new TypeToken<List<Map<String, String>>>() {}.getType());
+
+    if (properties.isEmpty()) {
+      throw new NoSuchElementException("The list with github emails is empty");
+    }
+
+    return filterPropertiesAndGetGithubPrimaryEmail(properties);
+  }
+
+  private String filterPropertiesAndGetGithubPrimaryEmail(List<Map<String, String>> properties) {
+    List<Map<String, String>> primaryPublicGithubEmails =
+        properties
+            .stream()
+            .filter(
+                map -> map.get("primary").equals("true") && map.get("visibility").equals("public"))
+            .collect(toList());
+
+    if (primaryPublicGithubEmails.isEmpty()) {
+      throw new NoSuchElementException("The list with github primary, public emails is empty");
+    }
+
+    return primaryPublicGithubEmails.get(0).get("email");
   }
 }

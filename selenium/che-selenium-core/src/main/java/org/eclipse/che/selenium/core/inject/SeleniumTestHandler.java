@@ -10,36 +10,45 @@
  */
 package org.eclipse.che.selenium.core.inject;
 
+import static com.google.inject.Guice.createInjector;
+import static java.lang.Runtime.getRuntime;
 import static java.lang.String.format;
 import static java.util.Optional.ofNullable;
 
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
+import javax.validation.constraints.NotNull;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.constant.TestBrowser;
 import org.eclipse.che.selenium.core.pageobject.InjectPageObject;
 import org.eclipse.che.selenium.core.pageobject.PageObjectsInjector;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
 import org.eclipse.che.selenium.core.user.InjectTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 import org.eclipse.che.selenium.core.workspace.InjectTestWorkspace;
 import org.eclipse.che.selenium.core.workspace.TestWorkspaceProvider;
 import org.openqa.selenium.OutputType;
@@ -64,6 +73,7 @@ import org.testng.TestException;
  * invoked twice.
  *
  * @author Anatolii Bazko
+ * @author Dmitry Nochevnov
  */
 public abstract class SeleniumTestHandler
     implements ITestListener, ISuiteListener, IInvokedMethodListener {
@@ -92,10 +102,16 @@ public abstract class SeleniumTestHandler
   @Named("sys.driver.version")
   private String webDriverVersion;
 
-  @Inject private DefaultTestUser defaultTestUser;
+  @Inject private TestUser defaultTestUser;
   @Inject private TestWorkspaceProvider testWorkspaceProvider;
 
   private final Map<Long, Object> runningTests = new ConcurrentHashMap<>();
+
+  private static AtomicBoolean isCleanUpCompleted = new AtomicBoolean();
+
+  public SeleniumTestHandler() {
+    getRuntime().addShutdownHook(new Thread(this::shutdown));
+  }
 
   @Override
   public void onTestStart(ITestResult result) {}
@@ -130,9 +146,10 @@ public abstract class SeleniumTestHandler
 
   @Override
   public void onStart(ISuite suite) {
-    Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
+    isCleanUpCompleted.set(false);
+    runningTests.clear();
 
-    Injector injector = createParentInjector();
+    Injector injector = createInjector(getParentModules());
     injector.injectMembers(this);
 
     suite.setParentInjector(injector);
@@ -150,7 +167,9 @@ public abstract class SeleniumTestHandler
   }
 
   @Override
-  public void onFinish(ISuite suite) {}
+  public void onFinish(ISuite suite) {
+    shutdown();
+  }
 
   @Override
   public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
@@ -192,18 +211,21 @@ public abstract class SeleniumTestHandler
   private void injectDependencies(ITestContext testContext, Object testInstance) throws Exception {
     Injector injector = testContext.getSuite().getParentInjector();
 
-    Injector classInjector = injector.createChildInjector(new SeleniumClassModule());
+    List<Module> childModules = new ArrayList<>(getChildModules());
+    childModules.add(new SeleniumClassModule());
+
+    Injector classInjector = injector.createChildInjector(childModules);
     classInjector.injectMembers(testInstance);
 
-    pageObjectsInjector.injectMembers(testInstance);
+    pageObjectsInjector.injectMembers(testInstance, classInjector);
   }
 
   /** Is invoked when test or configuration is finished. */
   private void onTestFinish(ITestResult result) {
-    if (result.getStatus() == ITestResult.FAILURE) {
+    if (result.getStatus() == ITestResult.FAILURE || result.getStatus() == ITestResult.SKIP) {
       ofNullable(result.getThrowable()).ifPresent(e -> LOG.error("" + e.getMessage(), e));
-
       captureScreenshot(result);
+      captureHtmlSource(result);
     }
   }
 
@@ -259,6 +281,13 @@ public abstract class SeleniumTestHandler
     webDrivers.forEach(webDriver -> captureScreenshot(result, webDriver));
   }
 
+  private void captureHtmlSource(ITestResult result) {
+    Set<SeleniumWebDriver> webDrivers = new HashSet<>();
+    Object testInstance = result.getInstance();
+    collectInjectedWebDrivers(testInstance, webDrivers);
+    webDrivers.forEach(webDriver -> dumpHtmlCodeFromTheCurrentPage(result, webDriver));
+  }
+
   /**
    * Iterates recursively throw all fields and collects instances of {@link SeleniumWebDriver}.
    *
@@ -308,7 +337,6 @@ public abstract class SeleniumTestHandler
     try {
       byte[] data = webDriver.getScreenshotAs(OutputType.BYTES);
       Path screenshot = Paths.get(screenshotDir, filename);
-
       Files.createDirectories(screenshot.getParent());
       Files.copy(new ByteArrayInputStream(data), screenshot);
     } catch (WebDriverException | IOException e) {
@@ -316,8 +344,26 @@ public abstract class SeleniumTestHandler
     }
   }
 
+  private void dumpHtmlCodeFromTheCurrentPage(ITestResult result, SeleniumWebDriver webDriver) {
+    String testName = result.getTestClass().getName() + "." + result.getMethod().getMethodName();
+    String filename = NameGenerator.generate(testName + "_", 8) + ".html";
+    try {
+      String pageSource = webDriver.getPageSource();
+      Path dumpDirectory = Paths.get("target/htmldumps", filename);
+      Files.createDirectories(dumpDirectory.getParent());
+      Files.write(
+          dumpDirectory, pageSource.getBytes(Charset.forName("UTF-8")), StandardOpenOption.CREATE);
+    } catch (WebDriverException | IOException e) {
+      LOG.error(format("Can't dump of html source for test %s", testName), e);
+    }
+  }
+
   /** Cleans up test environment. */
-  private void shutdown() {
+  public void shutdown() {
+    if (isCleanUpCompleted.get()) {
+      return;
+    }
+
     LOG.info("Cleaning up test environment...");
 
     for (Object testInstance : runningTests.values()) {
@@ -331,8 +377,15 @@ public abstract class SeleniumTestHandler
     if (defaultTestUser != null) {
       defaultTestUser.delete();
     }
+
+    isCleanUpCompleted.set(true);
   }
 
-  /** Returns parent injector. */
-  public abstract Injector createParentInjector();
+  /** Returns list of parent modules */
+  @NotNull
+  public abstract List<Module> getParentModules();
+
+  /** Returns list of child modules */
+  @NotNull
+  public abstract List<Module> getChildModules();
 }

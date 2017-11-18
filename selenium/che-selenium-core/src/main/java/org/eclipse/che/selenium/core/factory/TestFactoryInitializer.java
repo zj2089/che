@@ -32,24 +32,28 @@ import org.eclipse.che.api.workspace.shared.dto.WorkspaceConfigDto;
 import org.eclipse.che.commons.lang.IoUtil;
 import org.eclipse.che.commons.lang.NameGenerator;
 import org.eclipse.che.dto.server.DtoFactory;
+import org.eclipse.che.selenium.core.SeleniumWebDriver;
 import org.eclipse.che.selenium.core.client.TestFactoryServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
+import org.eclipse.che.selenium.core.entrance.Entrance;
 import org.eclipse.che.selenium.core.provider.TestApiEndpointUrlProvider;
 import org.eclipse.che.selenium.core.provider.TestDashboardUrlProvider;
 import org.eclipse.che.selenium.core.provider.TestIdeUrlProvider;
-import org.eclipse.che.selenium.core.user.DefaultTestUser;
+import org.eclipse.che.selenium.core.user.TestUser;
 
 /** @author Anatolii Bazko */
 @Singleton
 public class TestFactoryInitializer {
 
-  @Inject private DefaultTestUser defaultUser;
+  @Inject private TestUser defaultUser;
   @Inject private TestIdeUrlProvider ideUrlProvider;
   @Inject private TestDashboardUrlProvider dashboardUrlProvider;
   @Inject private TestApiEndpointUrlProvider apiEndpointProvider;
   @Inject private HttpJsonRequestFactory requestFactory;
   @Inject private TestFactoryServiceClient testFactoryServiceClient;
   @Inject private TestWorkspaceServiceClient workspaceServiceClient;
+  @Inject private Entrance entrance;
+  @Inject private SeleniumWebDriver seleniumWebDriver;
 
   /**
    * Initialize {@link TestFactory} base upon template.
@@ -78,7 +82,6 @@ public class TestFactoryInitializer {
     HttpJsonRequest httpJsonRequest =
         requestFactory.fromUrl(apiEndpointProvider.get() + "factory/resolver");
     httpJsonRequest.setBody(singletonMap("url", url));
-    httpJsonRequest.setAuthorizationHeader(defaultUser.getAuthToken());
     HttpJsonResponse response = httpJsonRequest.request();
 
     FactoryDto factoryDto = response.asDto(FactoryDto.class);
@@ -89,7 +92,9 @@ public class TestFactoryInitializer {
         factoryDto,
         dashboardUrlProvider,
         testFactoryServiceClient,
-        workspaceServiceClient);
+        workspaceServiceClient,
+        entrance,
+        seleniumWebDriver);
   }
 
   /** Builder for {@link TestFactory}. */
@@ -108,7 +113,9 @@ public class TestFactoryInitializer {
           factoryDto,
           dashboardUrlProvider,
           testFactoryServiceClient,
-          workspaceServiceClient);
+          workspaceServiceClient,
+          entrance,
+          seleniumWebDriver);
     }
 
     @Override
