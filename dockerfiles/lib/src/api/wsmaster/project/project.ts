@@ -48,14 +48,9 @@ export class Project {
         this.authData = authData;
 
         // search the workspace agent link
-        let servers : Map<string, org.eclipse.che.api.workspace.shared.dto.ServerDto> = this.workspaceDTO.getRuntime().getDevMachine().getRuntime().getServers();
+        let servers : Map<string, org.eclipse.che.api.workspace.shared.dto.ServerDto> = this.workspaceDTO.getRuntime().getMachines().get("dev-machine").getServers();
 
-        var hrefWsAgent : string;
-        for (let server of servers.values()) {
-            if (server.getRef() === 'wsagent') {
-                hrefWsAgent = server.getProperties().getInternalUrl();
-            }
-        }
+        var hrefWsAgent : string = servers.get("wsagent/http").getUrl();
 
         if (!hrefWsAgent) {
             throw new Error('unable to find the workspace agent link from workspace :' + workspaceDTO.getConfig().getName() + " with JSON " + workspaceDTO.toJson());

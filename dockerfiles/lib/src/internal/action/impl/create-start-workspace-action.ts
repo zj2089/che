@@ -60,10 +60,7 @@ export class CreateStartWorkspaceAction {
                 }).then((workspaceDto) => {
                     let ideUrl: string;
                     workspaceDto.getLinks().forEach((link) => {
-                        if ('ide url' === link.getRel()) {
-                            ideUrl = link.getHref();
-                            Log.getLogger().info(ideUrl);
-                        }
+                        Log.getLogger().info(ideUrl);
                     });
                 });
 

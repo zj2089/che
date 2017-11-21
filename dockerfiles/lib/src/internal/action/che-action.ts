@@ -11,8 +11,6 @@
 import {Argument} from "../../spi/decorator/parameter";
 import {ArgumentProcessor} from "../../spi/decorator/argument-processor";
 import {CreateStartWorkspaceAction} from "./impl/create-start-workspace-action";
-import {RemoveUserAction} from "./impl/remove-user-action";
-import {AddUserAction} from "./impl/add-user-action";
 import {ExecuteCommandAction} from "./impl/execute-command-action";
 import {Log} from "../../spi/log/log";
 import {ListWorkspacesAction} from "./impl/list-workspaces-action";
@@ -55,8 +53,6 @@ export class CheAction {
         Log.context = '(' + ProductName.getMiniDisplayName() + ' action)';
         let actionMap : Map<string, any> = new Map<string, any>();
         actionMap.set('create-start-workspace', CreateStartWorkspaceAction);
-        actionMap.set('add-user', AddUserAction);
-        actionMap.set('remove-user', RemoveUserAction);
         actionMap.set('execute-command', ExecuteCommandAction);
         actionMap.set('list-workspaces', ListWorkspacesAction);
         actionMap.set('workspace-ssh', WorkspaceSshAction);

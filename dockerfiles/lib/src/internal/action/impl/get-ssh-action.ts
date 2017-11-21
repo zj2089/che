@@ -84,13 +84,13 @@ export class GetSshDataAction {
                 return ssh.getPair("workspace", foundWorkspaceDTO.getId());
             }).then((sshPairDto : org.eclipse.che.api.ssh.shared.dto.SshPairDto) => {
 
-                let runtime : org.eclipse.che.api.machine.shared.dto.MachineRuntimeInfoDto = foundWorkspaceDTO.getRuntime().getDevMachine().getRuntime();
+                let runtime : org.eclipse.che.api.workspace.shared.dto.MachineDto = foundWorkspaceDTO.getRuntime().getMachines().get("dev-machine");
                 let user : string = runtime.getProperties().get("config.user");
                 if (user === "") {
                     // user is root if not defined
                     user = "root";
                 }
-                let address: Array<string> = runtime.getServers().get("22/tcp").getProperties().getInternalAddress().split(":");
+                let address: Array<string> = runtime.getServers().get("ssh").getUrl().split(":");
                 let ip:string = address[0];
                 let port:string = address[1];
 

@@ -82,7 +82,7 @@ export class WorkspaceSshAction {
                 // Check ssh agent is there
                 let defaultEnv:string = workspaceDto.getConfig().getDefaultEnv();
 
-                let machineConfig : org.eclipse.che.api.workspace.shared.dto.ExtendedMachineDto = workspaceDto.getConfig().getEnvironments().get(defaultEnv).getMachines().get(this.machineName);
+                let machineConfig : org.eclipse.che.api.workspace.shared.dto.MachineConfigDto = workspaceDto.getConfig().getEnvironments().get(defaultEnv).getMachines().get(this.machineName);
                 if (!machineConfig) {
                     throw new Error("Unable to find a machine named " + this.machineName + " in the workspace '" + this.workspaceName)
                 }
@@ -102,7 +102,7 @@ export class WorkspaceSshAction {
                 return ssh.getPair("workspace", foundWorkspaceDTO.getId());
             }).then((sshPairDto : org.eclipse.che.api.ssh.shared.dto.SshPairDto) => {
 
-                let machines : Array<org.eclipse.che.api.workspace.shared.dto.MachineDto> = foundWorkspaceDTO.getRuntime().getMachines();
+                let machines : Array<org.eclipse.che.api.workspace.shared.dto.MachineDto> = foundWorkspaceDTO.getRuntime().getMachines().values;
                 let runtime: org.eclipse.che.api.machine.shared.dto.MachineRuntimeInfoDto = this.getSelectedMachine(machines).getRuntime();
                 let user : string = runtime.getProperties().get("config.user");
                 if (user === "") {

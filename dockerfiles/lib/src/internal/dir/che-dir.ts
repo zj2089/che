@@ -480,12 +480,7 @@ export class CheDir {
         }
 
         // search IDE url link
-        let ideUrl : string = 'N/A';
-        workspaceDto.getLinks().forEach((link) => {
-          if ('ide url' === link.getRel()) {
-            ideUrl = link.getHref();
-          }
-        });
+        let ideUrl : string =  workspaceDto.getLinks().get("ide");
         Log.getLogger().info(this.i18n.get('status.workspace.name', this.chefileStructWorkspace.name));
         Log.getLogger().info(this.i18n.get('status.workspace.url', ideUrl));
         Log.getLogger().info(this.i18n.get('status.instance.id', this.instanceId));
@@ -736,7 +731,7 @@ export class CheDir {
 
   rsyncProject(workspaceDto: org.eclipse.che.api.workspace.shared.dto.WorkspaceDto) : Promise<any> {
     var spawn = require('child_process').spawn;
-    let port: string = workspaceDto.getRuntime().getDevMachine().getRuntime().getServers()["22/tcp"].getAddress().split(":")[1];
+    let port: string = workspaceDto.getRuntime().getMachines().get("dev-machine").getServers()["22/tcp"].getAddress().split(":")[1];
     let username : string = "user@" + this.chefileStruct.server.ip;
 
 
@@ -779,13 +774,13 @@ setupSSHKeys(workspaceDto: org.eclipse.che.api.workspace.shared.dto.WorkspaceDto
 
     // ok we have the public key, now storing it
     // get dev machine
-    let machineId : string = workspaceDto.getRuntime().getDevMachine().getId();
+    let machineId : string = "dev-machine";
 
 
-    let execAgentServer = workspaceDto.getRuntime().getDevMachine().getRuntime().getServers().get("4412/tcp");
+    let execAgentServer = workspaceDto.getRuntime().getMachines().get("dev-machine").getServers().get("4412/tcp");
     let execAgentURI = execAgentServer.getUrl();
     if (execAgentURI.includes("localhost")) {
-      execAgentURI = execAgentServer.getProperties().getInternalUrl();
+      execAgentURI = execAgentURI;
     }
 
     let execAgentServiceClient:ExecAgentServiceClientImpl = new ExecAgentServiceClientImpl(this.workspace, this.authData, execAgentURI);
@@ -796,10 +791,10 @@ setupSSHKeys(workspaceDto: org.eclipse.che.api.workspace.shared.dto.WorkspaceDto
     customCommand.commandLine = '(mkdir $HOME/.ssh || true) && echo "' + publicKey + '">> $HOME/.ssh/authorized_keys';
     customCommand.name = 'setup ssh';
     customCommand.type = 'custom';
-    
+
    // store in workspace the public key
    return execAgentServiceClient.executeCommand(customCommand, uuid, false);
- 
+
 }
 
 
@@ -836,7 +831,7 @@ setupSSHKeys(workspaceDto: org.eclipse.che.api.workspace.shared.dto.WorkspaceDto
           return Promise.reject("The SSH agent (org.eclipse.che.ssh) has been disabled for this workspace.")
         }
 
-        let port: string = workspaceDto.getRuntime().getDevMachine().getRuntime().getServers().get("22/tcp").getAddress().split(":")[1];
+        let port: string = workspaceDto.getRuntime().getMachines().get("dev-machine").getServers().get("ssh").getUrl().split(":")[1];
         var spawn = require('child_process').spawn;
 
         let username : string = "user@" + this.chefileStruct.server.ip;
@@ -900,18 +895,15 @@ setupSSHKeys(workspaceDto: org.eclipse.che.api.workspace.shared.dto.WorkspaceDto
 
   executeCommandsFromCurrentWorkspace(workspaceDto : org.eclipse.che.api.workspace.shared.dto.WorkspaceDto) : Promise<any> {
     // get dev machine
-    let machineId : string = workspaceDto.getRuntime().getDevMachine().getId();
+    let machineId : string = "dev-machine";
 
 
     let promises : Array<Promise<any>> = new Array<Promise<any>>();
     let workspaceCommands : Array<any> = workspaceDto.getConfig().getCommands();
 
     // get exec-agent URI
-    let execAgentServer = workspaceDto.getRuntime().getDevMachine().getRuntime().getServers().get("4412/tcp");
+    let execAgentServer = workspaceDto.getRuntime().getMachines().get("dev-machine").getServers().get("ssh");
     let execAgentURI = execAgentServer.getUrl();
-    if (execAgentURI.includes("localhost")) {
-      execAgentURI = execAgentServer.getProperties().getInternalUrl();
-    }
     let execAgentServiceClientImpl:ExecAgentServiceClientImpl = new ExecAgentServiceClientImpl(this.workspace, this.authData, execAgentURI);
 
     if (this.chefileStructWorkspace.postload.actions && this.chefileStructWorkspace.postload.actions.length > 0) {

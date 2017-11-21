@@ -65,10 +65,10 @@ export class ExecuteCommandAction {
                 }
 
                 // get exec-agent URI
-                let execAgentServer = workspaceDto.getRuntime().getDevMachine().getRuntime().getServers().get("4412/tcp");
+                let execAgentServer = workspaceDto.getRuntime().getMachines().get("dev-machine").getServers().get("4412/tcp");
                 let execAgentURI = execAgentServer.getUrl();
                 if (execAgentURI.includes("localhost")) {
-                    execAgentURI = execAgentServer.getProperties().getInternalUrl();
+                    execAgentURI = execAgentServer.getUrl();
                 }
 
                 // now, execute command

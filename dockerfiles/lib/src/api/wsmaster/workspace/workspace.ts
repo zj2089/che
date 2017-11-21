@@ -195,13 +195,7 @@ export class Workspace {
         let workspaceId:string = workspaceDto.getId();
 
         // get links for WS
-        var link:string;
-        workspaceDto.getLinks().forEach(workspaceLink => {
-            if ('get workspace events channel' === workspaceLink.getRel()) {
-                link = workspaceLink.getHref();
-            }
-        });
-
+        var link:string =  workspaceDto.getLinks().get('environment/statusChannel');
         return this.websocket.getMessageBus(link + '?token=' + this.authData.getToken());
     }
 
