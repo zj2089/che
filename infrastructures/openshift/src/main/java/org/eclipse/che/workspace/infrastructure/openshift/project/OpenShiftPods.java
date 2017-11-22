@@ -332,6 +332,21 @@ public class OpenShiftPods {
     }
   }
 
+  public void execAsync(String podName, String containerName, int timeoutMin, String[] command)
+      throws InfrastructureException {
+    try (OpenShiftClient client = clientFactory.create();
+        ExecWatch watch =
+            client
+                .pods()
+                .inNamespace(namespace)
+                .withName(podName)
+                .inContainer(containerName)
+                .exec(encode(command))) {
+    } catch (KubernetesClientException e) {
+      throw new InfrastructureException(e.getMessage());
+    }
+  }
+
   /**
    * Deletes pod with given name.
    *

@@ -79,7 +79,7 @@ public class OpenShiftBootstrapper extends AbstractBootstrapper {
       throws InfrastructureException {
     injectBootstrapper();
 
-    openShiftMachine.exec(
+    openShiftMachine.execAsync(
         "sh",
         "-c",
         BOOTSTRAPPER_DIR

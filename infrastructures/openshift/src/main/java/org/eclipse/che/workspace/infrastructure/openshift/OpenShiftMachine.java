@@ -84,6 +84,10 @@ public class OpenShiftMachine implements Machine {
     project.pods().exec(podName, containerName, EXEC_TIMEOUT_MIN, command);
   }
 
+  public void execAsync(String... command) throws InfrastructureException {
+    project.pods().execAsync(podName, containerName, EXEC_TIMEOUT_MIN, command);
+  }
+
   public void waitRunning(int timeoutMin) throws InfrastructureException {
     project
         .pods()
