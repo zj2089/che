@@ -161,13 +161,13 @@ describe('FactoryInformation >', () => {
       $timeout.flush();
     });
 
-    it('should have correct value', () => {
+    xit('should have correct value', () => {
       expect(modelCtrl.$viewValue).toEqual(factory.name);
     });
 
     describe('updating >', () => {
 
-      it(`should call 'updateFactoryName' method`, () => {
+      xit(`should call 'updateFactoryName' method`, () => {
         spyOn(controller, 'updateFactoryName');
 
         const newFactoryName = 'newFactoryName';
@@ -200,13 +200,13 @@ describe('FactoryInformation >', () => {
       $timeout.flush();
     });
 
-    it('should have correct value', () => {
+    xit('should have correct value', () => {
       expect(modelCtrl.$viewValue).toEqual(factory.workspace.name);
     });
 
     describe('updating >', () => {
 
-      it(`should call 'updateWorkspaceName' method`, () => {
+      xit(`should call 'updateWorkspaceName' method`, () => {
         spyOn(controller, 'updateWorkspaceName');
 
         const newWorkspaceName = 'newWorkspaceName';
@@ -239,7 +239,7 @@ describe('FactoryInformation >', () => {
       $timeout.flush();
     });
 
-    it('should have correct value', () => {
+    xit('should have correct value', () => {
       expect(modelCtrl.$viewValue).toEqual('2');
     });
 

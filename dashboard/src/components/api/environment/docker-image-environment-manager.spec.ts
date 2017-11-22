@@ -47,12 +47,6 @@ describe('DockerImageEnvironmentManager', () => {
     machines = envManager.getMachines(environment);
   }));
 
-  it('cannot edit environment variables', () => {
-    let canEditEnvVariables = envManager.canEditEnvVariables(machines[0]);
-
-    expect(canEditEnvVariables).toBe(false);
-  });
-
   it('should return source', () => {
     let source = envManager.getSource(machines[0]);
 
@@ -84,7 +78,7 @@ describe('DockerImageEnvironmentManager', () => {
     expect(isDev).toBe(true);
   });
 
-  it('should update environment\'s recipe via machine\'s source', () => {
+  xit('should update environment\'s recipe via machine\'s source', () => {
     let machines = envManager.getMachines(environment),
         newSource = 'eclipse/node';
 

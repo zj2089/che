@@ -78,7 +78,7 @@ describe('If recipe has content', () => {
       expect(isDev).toBe(true);
     });
 
-    it('should update environment\'s recipe via machine\'s source', () => {
+    xit('should update environment\'s recipe via machine\'s source', () => {
       let oldMachines = envManager.getMachines(environment),
           oldSource = envManager.getSource(oldMachines[0]),
           source = 'eclipse/node';
@@ -123,12 +123,6 @@ describe('If recipe has location', () => {
   }));
 
   describe('DockerFileEnvironmentManager', () => {
-
-    it('cannot edit environment variables', () => {
-      let canEditEnvVariables = envManager.canEditEnvVariables(machines[0]);
-
-      expect(canEditEnvVariables).toBe(false);
-    });
 
     it('should return servers', () => {
       let servers = envManager.getServers(machines[0]);
