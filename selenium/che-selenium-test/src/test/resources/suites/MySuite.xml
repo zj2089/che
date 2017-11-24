@@ -1,0 +1,34 @@
+<!--
+
+    Copyright (c) 2012-2017 Red Hat, Inc.
+    All rights reserved. This program and the accompanying materials
+    are made available under the terms of the Eclipse Public License v1.0
+    which accompanies this distribution, and is available at
+    http://www.eclipse.org/legal/epl-v10.html
+
+    Contributors:
+      Red Hat, Inc. - initial API and implementation
+
+-->
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
+<suite name="Multi-thread Eclipse Che tests"
+  verbose="10"
+  parallel="classes"
+  thread-count="4">
+
+  <test name="all">
+    <classes>
+      <class name="org.eclipse.che.selenium.editor.autocomplete.OpenDeclarationTest"/>
+      <class name="org.eclipse.che.selenium.editor.autocomplete.QuickFixAndCodeAssistantFeaturesTest"/>
+      <class name="org.eclipse.che.selenium.editor.autocomplete.ShowHintsCommandTest"/>
+      <class name="org.eclipse.che.selenium.editor.CheckReplaceFeatureInEditorTest"/>
+      <class name="org.eclipse.che.selenium.editor.CheckRestoringSplitEditorTest">
+        <methods>
+          <exclude name="checkRestoringStateSplittedEditor"/>
+        </methods>
+      </class>
+      <class name="org.eclipse.che.selenium.editor.CheckSearchFeatureInEditorTest"/>
+      <class name="org.eclipse.che.selenium.editor.CheckWorkingWithTabByUsingTabListTest"/>
+    </classes>
+  </test>
+</suite>
