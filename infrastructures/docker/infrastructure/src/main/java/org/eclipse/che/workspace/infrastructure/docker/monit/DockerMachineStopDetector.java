@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.infrastructure.docker.client.DockerConnector;
 import org.eclipse.che.infrastructure.docker.client.MessageProcessor;
 import org.eclipse.che.infrastructure.docker.client.json.Event;
@@ -71,7 +70,6 @@ public class DockerMachineStopDetector {
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
                 .setNameFormat("DockerMachineStopDetector-%d")
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .setDaemon(true)
                 .build());
   }

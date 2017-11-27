@@ -16,7 +16,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.PreDestroy;
 import javax.inject.Singleton;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
 import org.slf4j.LoggerFactory;
 
@@ -30,11 +29,7 @@ public class DockerSharedPool {
   private final ExecutorService executor =
       Executors.newFixedThreadPool(
           Runtime.getRuntime().availableProcessors(), // <- experimental value
-          new ThreadFactoryBuilder()
-              .setNameFormat("DockerSharedPool-%d")
-              .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
-              .setDaemon(false)
-              .build());
+          new ThreadFactoryBuilder().setNameFormat("DockerSharedPool-%d").setDaemon(false).build());
 
   /**
    * Delegates call to {@link ExecutorService#execute(Runnable)} and propagates thread locals to it

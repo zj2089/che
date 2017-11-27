@@ -20,7 +20,6 @@ import java.util.concurrent.ThreadFactory;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import org.eclipse.che.api.core.jsonrpc.commons.RequestProcessor;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 
 @Singleton
 public class ServerSideRequestProcessor implements RequestProcessor {
@@ -30,7 +29,6 @@ public class ServerSideRequestProcessor implements RequestProcessor {
   private void postConstruct() {
     ThreadFactory factory =
         new ThreadFactoryBuilder()
-            .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
             .setNameFormat(ServerSideRequestProcessor.class.getSimpleName())
             .setDaemon(true)
             .build();

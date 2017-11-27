@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 import javax.inject.Named;
 import org.eclipse.che.api.core.model.workspace.WorkspaceStatus;
 import org.eclipse.che.commons.lang.NameGenerator;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClient;
 import org.eclipse.che.selenium.core.client.TestWorkspaceServiceClientFactory;
 import org.eclipse.che.selenium.core.user.TestUser;
@@ -175,7 +174,6 @@ public class TestWorkspaceProviderImpl implements TestWorkspaceProvider {
             new ThreadFactoryBuilder()
                 .setNameFormat("WorkspaceInitializer-%d")
                 .setDaemon(true)
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .build());
 
     executor.scheduleWithFixedDelay(

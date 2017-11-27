@@ -22,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.PreDestroy;
 import org.eclipse.che.commons.lang.IoUtil;
 import org.eclipse.che.commons.lang.Pair;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,11 +41,7 @@ public class FileCleaner {
 
   private static ScheduledExecutorService exec =
       Executors.newSingleThreadScheduledExecutor(
-          new ThreadFactoryBuilder()
-              .setNameFormat("FileCleaner")
-              .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
-              .setDaemon(true)
-              .build());
+          new ThreadFactoryBuilder().setNameFormat("FileCleaner").setDaemon(true).build());
 
   static {
     exec.scheduleAtFixedRate(

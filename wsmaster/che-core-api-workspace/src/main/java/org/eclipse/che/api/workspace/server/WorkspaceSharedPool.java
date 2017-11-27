@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import org.eclipse.che.commons.annotation.Nullable;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,11 +43,7 @@ public class WorkspaceSharedPool {
       @Named("che.workspace.pool.exact_size") @Nullable String exactSizeProp,
       @Named("che.workspace.pool.cores_multiplier") @Nullable String coresMultiplierProp) {
     ThreadFactory factory =
-        new ThreadFactoryBuilder()
-            .setNameFormat("WorkspaceSharedPool-%d")
-            .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
-            .setDaemon(false)
-            .build();
+        new ThreadFactoryBuilder().setNameFormat("WorkspaceSharedPool-%d").setDaemon(false).build();
     switch (poolType.toLowerCase()) {
       case "cached":
         executor = Executors.newCachedThreadPool(factory);

@@ -33,7 +33,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
 import org.eclipse.che.api.workspace.server.spi.InfrastructureException;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
 import org.eclipse.che.workspace.infrastructure.openshift.project.OpenShiftPods;
 import org.eclipse.che.workspace.infrastructure.openshift.project.OpenShiftProjectFactory;
@@ -91,7 +90,6 @@ public class PVCSubPathHelper {
             COUNT_THREADS,
             new ThreadFactoryBuilder()
                 .setNameFormat("PVCSubPathHelper-ThreadPool-%d")
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .setDaemon(false)
                 .build());
   }

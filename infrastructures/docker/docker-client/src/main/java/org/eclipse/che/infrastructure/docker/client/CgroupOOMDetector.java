@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import javax.inject.Inject;
 import org.eclipse.che.api.core.util.SystemInfo;
 import org.eclipse.che.commons.lang.Size;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +55,6 @@ public class CgroupOOMDetector implements DockerOOMDetector {
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder()
                 .setNameFormat("CgroupOOMDetector-%d")
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .setDaemon(true)
                 .build());
   }

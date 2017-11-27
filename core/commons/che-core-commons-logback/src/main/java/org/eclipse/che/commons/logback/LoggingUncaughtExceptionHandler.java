@@ -8,7 +8,7 @@
  * Contributors:
  *   Red Hat, Inc. - initial API and implementation
  */
-package org.eclipse.che.commons.lang.concurrent;
+package org.eclipse.che.commons.logback;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

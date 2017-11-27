@@ -17,7 +17,6 @@ import javax.annotation.PreDestroy;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Singleton;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.schedule.Launcher;
 import org.eclipse.che.inject.ConfigurationException;
 import org.slf4j.Logger;
@@ -45,7 +44,6 @@ public class ThreadPullLauncher implements Launcher {
             corePoolSize,
             new ThreadFactoryBuilder()
                 .setNameFormat("Annotated-scheduler-%d")
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .setDaemon(false)
                 .build());
   }

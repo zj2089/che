@@ -27,7 +27,6 @@ import org.eclipse.che.api.core.ConflictException;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.system.shared.SystemStatus;
 import org.eclipse.che.api.system.shared.event.SystemStatusChangedEvent;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.lang.concurrent.ThreadLocalPropagateContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +70,6 @@ public class SystemManager {
             new ThreadFactoryBuilder()
                 .setDaemon(false)
                 .setNameFormat("ShutdownSystemServicesPool")
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .build());
     exec.execute(ThreadLocalPropagateContext.wrap(this::doStopServices));
     exec.shutdown();

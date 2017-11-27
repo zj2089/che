@@ -49,7 +49,6 @@ import javax.ws.rs.core.MediaType;
 import org.eclipse.che.api.core.util.FileCleaner;
 import org.eclipse.che.commons.annotation.Nullable;
 import org.eclipse.che.commons.lang.TarUtils;
-import org.eclipse.che.commons.lang.concurrent.LoggingUncaughtExceptionHandler;
 import org.eclipse.che.commons.lang.ws.rs.ExtMediaType;
 import org.eclipse.che.infrastructure.docker.client.connection.CloseConnectionInputStream;
 import org.eclipse.che.infrastructure.docker.client.connection.DockerConnection;
@@ -159,7 +158,6 @@ public class DockerConnector {
     executor =
         Executors.newCachedThreadPool(
             new ThreadFactoryBuilder()
-                .setUncaughtExceptionHandler(LoggingUncaughtExceptionHandler.getInstance())
                 .setNameFormat("DockerApiConnector-%d")
                 .setDaemon(true)
                 .build());
