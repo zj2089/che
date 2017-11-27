@@ -103,7 +103,8 @@ public class OpenShiftBootstrapper extends AbstractBootstrapper {
             + Integer.toString(installerTimeoutSeconds)
             + " -file "
             + BOOTSTRAPPER_DIR
-            + CONFIG_FILE);
+            + CONFIG_FILE
+            + " &>/dev/null &");
   }
 
   private void injectBootstrapper() throws InfrastructureException {
