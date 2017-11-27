@@ -64,6 +64,8 @@ public class OpenShiftPods {
   private static final Pattern CONTAINER_FIELD_PATH_PATTERN =
       Pattern.compile("spec.containers\\{(?<" + CONTAINER_NAME_GROUP + ">.*)}");
 
+  public static final int TIMEOUT = 3;
+
   private static final String POD_OBJECT_KIND = "Pod";
 
   private final String namespace;
@@ -313,7 +315,7 @@ public class OpenShiftPods {
    */
   public void exec(String podName, String containerName, int timeoutMin, String[] command)
       throws InfrastructureException {
-    ExecWatchdog watchdog = new ExecWatchdog();
+    final ExecWatchdog watchdog = new ExecWatchdog();
     try (ExecWatch watch =
         clientFactory
             .create()
@@ -346,7 +348,7 @@ public class OpenShiftPods {
    */
   public void delete(String name) throws InfrastructureException {
     try {
-      doDelete(name).get();
+      doDelete(name).get(TIMEOUT, TimeUnit.MINUTES);
     } catch (InterruptedException ex) {
       Thread.currentThread().interrupt();
       throw new InfrastructureException(
@@ -354,6 +356,8 @@ public class OpenShiftPods {
     } catch (ExecutionException ex) {
       throw new InfrastructureException(
           "Error occurred while waiting for pod removal. " + ex.getMessage());
+    } catch (TimeoutException ex) {
+      throw new InfrastructureException("Pod removal timeout reached " + ex.getMessage());
     }
   }
 
@@ -384,7 +388,7 @@ public class OpenShiftPods {
       final CompletableFuture<Void> removed =
           allOf(deleteFutures.toArray(new CompletableFuture[deleteFutures.size()]));
       try {
-        removed.get();
+        removed.get(TIMEOUT, TimeUnit.MINUTES);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new InfrastructureException(
@@ -392,6 +396,8 @@ public class OpenShiftPods {
       } catch (ExecutionException e) {
         throw new InfrastructureException(
             "Error occurred while waiting for pod removing. " + e.getMessage());
+      } catch (TimeoutException ex) {
+        throw new InfrastructureException("Pods removal timeout reached " + ex.getMessage());
       }
     } catch (KubernetesClientException e) {
       throw new InfrastructureException(e.getMessage(), e);
@@ -403,9 +409,17 @@ public class OpenShiftPods {
       final PodResource<Pod, DoneablePod> podResource =
           clientFactory.create().pods().inNamespace(namespace).withName(name);
       final CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
-      podResource.watch(new DeleteWatcher(deleteFuture));
+      final Watch watch = podResource.watch(new DeleteWatcher(deleteFuture));
+
       podResource.delete();
-      return deleteFuture;
+
+      return deleteFuture
+          .thenAccept((v) -> watch.close())
+          .exceptionally(
+              e -> {
+                watch.close();
+                return null;
+              });
     } catch (KubernetesClientException ex) {
       throw new InfrastructureException(ex.getMessage(), ex);
     }
