@@ -15,7 +15,6 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import io.fabric8.openshift.client.OpenShiftClient;
 import javax.inject.Named;
 import org.eclipse.che.api.core.notification.EventService;
 import org.eclipse.che.api.core.notification.EventSubscriber;
@@ -56,8 +55,6 @@ public class RemoveProjectOnWorkspaceRemove implements EventSubscriber<Workspace
 
   @VisibleForTesting
   void doRemoveProject(String projectName) {
-    try (OpenShiftClient client = clientFactory.create()) {
-      client.projects().withName(projectName).delete();
-    }
+    clientFactory.create().projects().withName(projectName).delete();
   }
 }
