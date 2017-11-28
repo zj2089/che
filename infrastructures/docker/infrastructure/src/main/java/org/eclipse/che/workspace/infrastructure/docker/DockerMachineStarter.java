@@ -525,10 +525,6 @@ public class DockerMachineStarter {
       MessageProcessor<LogMessage> logsProcessor) {
     executor.execute(
         () -> {
-          boolean test = false;
-          if (test) {
-            throw new RuntimeException("test test 123");
-          }
           long lastProcessedLogDate = 0;
           boolean isContainerRunning = true;
           int errorsCounter = 0;
